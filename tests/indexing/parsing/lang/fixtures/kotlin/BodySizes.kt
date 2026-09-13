@@ -1,7 +1,5 @@
 interface BodySizes {
 
-    fun abstractMethod(a: Int): Int
-
     fun emptyBody() {}
 
     @Deprecated("use takeFirst instead")

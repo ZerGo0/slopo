@@ -12,7 +12,12 @@ from slopo.indexing.db import (
     update_file_mtime,
     IndexedFile,
 )
-from slopo.indexing.scanner import filter_units, parse_file, scan_directory
+from slopo.indexing.scanner import (
+    NodeCountThresholds,
+    filter_units,
+    parse_file,
+    scan_directory,
+)
 
 
 @dataclass
@@ -26,7 +31,7 @@ class SyncStats:
 def sync_index(
     conn: sqlite3.Connection,
     directory: Path,
-    body_node_count_threshold: int,
+    thresholds: NodeCountThresholds,
     exclude: list[str],
 ) -> SyncStats:
     indexed_files = 0
@@ -47,7 +52,7 @@ def sync_index(
             continue
 
         units = parse_file(full_path)
-        units = filter_units(units, body_node_count_threshold)
+        units = filter_units(units, thresholds)
 
         if existing is None:
             file_id = insert_file(conn, path_str, mtime)

@@ -1,11 +1,11 @@
-pub mod geometry {
-    pub struct Circle {
-        radius: f64,
-    }
-
-    impl Circle {
-        pub fn area(&self) -> f64 {
-            std::f64::consts::PI * self.radius * self.radius
+pub fn count(rows: &[Vec<i32>], threshold: i32) -> usize {
+    let mut hits = 0;
+    for row in rows {
+        for cell in row {
+            if *cell > threshold {
+                hits += 1;
+            }
         }
     }
+    hits
 }

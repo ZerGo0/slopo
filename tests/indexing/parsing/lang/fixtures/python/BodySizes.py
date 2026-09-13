@@ -1,6 +1,3 @@
-from functools import cache
-
-
 def stub(): ...
 
 
@@ -8,7 +5,6 @@ def empty_body():
     pass
 
 
-@cache
 def fibonacci(n):
     if n < 2:
         return n

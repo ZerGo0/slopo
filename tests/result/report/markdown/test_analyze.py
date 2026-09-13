@@ -62,17 +62,25 @@ def test_renders_cluster_with_each_unit_and_its_code_block():
 
 Hash: `cluster-1-hash`
 
----
+### ______ 1 ______
 
 - `src/A.java` lines 10-20
+
+```java
+foo
+```
 
 ```java
 int foo() {}
 ```
 
----
+### ______ 2 ______
 
 - `src/B.java` lines 5-15
+
+```java
+bar
+```
 
 ```java
 int bar() {}
@@ -97,18 +105,31 @@ def test_groups_exact_duplicates():
 
 Hash: `grouped-hash`
 
----
+### ______ 1 ______
 
 - `src/A.java` lines 10-20
+
+```java
+foo
+```
+
 - `src/C.java` lines 1-11
+
+```java
+baz
+```
 
 ```java
 int foo() {}
 ```
 
----
+### ______ 2 ______
 
 - `src/B.java` lines 5-15
+
+```java
+bar
+```
 
 ```java
 int bar() {}
@@ -120,7 +141,7 @@ int bar() {}
 def test_orders_duplicates_by_file_path():
     units = {
         1: UnitRecord(1, "src/C.java", "foo", 10, 20, "int foo() {}", "hashA"),
-        2: UnitRecord(2, "src/D.java", "baz", 1, 11, "x", "hashA"),
+        2: UnitRecord(2, "src/D.java", None, 1, 11, "x", "hashA"),
         3: UnitRecord(3, "src/A.java", "qux", 2, 12, "y", "hashA"),
     }
     cluster = Cluster([1, 2, 3], 0.95, 0.97)
@@ -134,14 +155,97 @@ def test_orders_duplicates_by_file_path():
 
 Hash: `ordered-hash`
 
----
+### ______ 1 ______
 
 - `src/A.java` lines 2-12
+
+```java
+qux
+```
+
 - `src/C.java` lines 10-20
+
+```java
+foo
+```
+
 - `src/D.java` lines 1-11
 
 ```java
 int foo() {}
+```
+"""
+    )
+
+
+def test_renders_identical_context_once_before_the_body():
+    units = {
+        1: UnitRecord(1, "src/A.java", "foo", 10, 20, "int foo() {}", "hashA"),
+        2: UnitRecord(2, "src/B.java", "foo", 30, 40, "int foo() {}", "hashA"),
+    }
+    cluster = Cluster([1, 2], 1.0, 1.0)
+
+    markdown = build_cluster_analyze(1, HashedCluster(cluster, "grouped-hash"), units)
+
+    assert (
+        markdown
+        == """\
+## (1) score 1.00
+
+Hash: `grouped-hash`
+
+### ______ 1 ______
+
+- `src/A.java` lines 10-20
+
+- `src/B.java` lines 30-40
+
+```java
+foo
+```
+
+```java
+int foo() {}
+```
+"""
+    )
+
+
+def test_groups_exact_copies_by_context():
+    units = {
+        1: UnitRecord(1, "src/A.java", "common", 10, 20, "body", "hashA"),
+        2: UnitRecord(2, "src/B.java", "different", 30, 40, "body", "hashA"),
+        3: UnitRecord(3, "src/C.java", "common", 50, 60, "body", "hashA"),
+    }
+    cluster = Cluster([1, 2, 3], 1.0, 1.0)
+
+    markdown = build_cluster_analyze(1, HashedCluster(cluster, "grouped-hash"), units)
+
+    assert (
+        markdown
+        == """\
+## (1) score 1.00
+
+Hash: `grouped-hash`
+
+### ______ 1 ______
+
+- `src/A.java` lines 10-20
+
+- `src/C.java` lines 50-60
+
+```java
+common
+```
+
+- `src/B.java` lines 30-40
+
+```java
+different
+```
+
+```java
+body
 ```
 """
     )

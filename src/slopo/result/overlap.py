@@ -1,14 +1,23 @@
-from slopo.result.models import SimilarPair, UnitRecord
+from slopo.result.models import Cluster, SimilarPair, UnitRecord
 
 
 def exclude_overlapping_pairs(
     pairs: list[SimilarPair], units: dict[int, UnitRecord]
 ) -> list[SimilarPair]:
-    # A unit nested in another unit's body (a local function, a callback, an
-    # anonymous-class method) is indexed both on its own and inside its parent,
-    # so the two overlap in source and score as near-identical. That similarity
-    # is an artifact of the containment, not real duplication, so drop the pair.
     return [p for p in pairs if not _overlaps(units[p.unit_id_a], units[p.unit_id_b])]
+
+
+def exclude_overlapping_cluster_units(
+    clusters: list[Cluster], units: dict[int, UnitRecord]
+) -> list[Cluster]:
+    result: list[Cluster] = []
+    for cluster in clusters:
+        kept: list[int] = []
+        for uid in cluster.unit_ids:
+            if not any(_overlaps(units[uid], units[other]) for other in kept):
+                kept.append(uid)
+        result.append(cluster._replace(unit_ids=kept))
+    return result
 
 
 def _overlaps(a: UnitRecord, b: UnitRecord) -> bool:

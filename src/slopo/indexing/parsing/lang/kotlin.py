@@ -1,100 +1,231 @@
 import tree_sitter_kotlin
 from tree_sitter import Language, Node, Parser
 
-from slopo.indexing.parsing.base import CodeUnit, hash_body
+from slopo.indexing.parsing.base import CodeUnit, hash_body, normalize_indents, to_utf8
+from slopo.indexing.parsing.comments import strip_comments
 
 _LANGUAGE = Language(tree_sitter_kotlin.language())
 _PARSER = Parser(_LANGUAGE)
 
 _COMMENT_TYPES = {"line_comment", "block_comment"}
 
-_UNIT_TYPES = {"function_declaration", "anonymous_function"}
+_FUNCTION_TYPES = {
+    "function_declaration",
+    "getter",
+    "setter",
+    "secondary_constructor",
+    "anonymous_function",
+    "anonymous_initializer",
+    "lambda_literal",
+}
+
+_LOOP_TYPES = {"for_statement", "while_statement", "do_while_statement"}
+
+_CONTROL_FLOW_TYPES = {
+    "if_expression",
+    "when_expression",
+    "try_expression",
+} | _LOOP_TYPES
 
 
 def parse(source: bytes) -> list[CodeUnit]:
-    tree = _PARSER.parse(source)
+    stripped = strip_comments(to_utf8(source), _PARSER, _should_strip)
+    tree = _PARSER.parse(stripped)
     units: list[CodeUnit] = []
-    _collect_units(tree.root_node, source, units)
+    _collect_units(tree.root_node, stripped, units)
+    normalize_indents(units)
     return units
 
 
+def _should_strip(node: Node) -> bool:
+    return node.type in _COMMENT_TYPES
+
+
 def _collect_units(node: Node, source: bytes, units: list[CodeUnit]) -> None:
-    if node.type in _UNIT_TYPES:
-        body = _body_without_comments(node, source)
-        units.append(
-            CodeUnit(
-                name=_unit_name(node),
-                body=body,
-                start_line=node.start_point[0] + 1,
-                end_line=node.end_point[0] + 1,
-                body_node_count=_count_body_nodes(node),
-                body_hash=hash_body(body),
-            )
-        )
+    if node.type in _FUNCTION_TYPES:
+        unit = _function_unit(node, source)
+        if unit is not None:
+            units.append(unit)
+    for context, start, body_nodes in _block_entries(node):
+        units.append(_block_unit(context, start, body_nodes, source))
     for child in node.children:
         _collect_units(child, source, units)
 
 
-def _unit_name(node: Node) -> str:
-    # Function declarations carry their own name. Anonymous functions are
-    # anonymous, so the name comes from what they are bound to (one passed as a
-    # call argument has no name and stays <unknown>). Bindings are positional in
-    # this grammar — there are no name/left fields as in Java or C#.
-    name_node = node.child_by_field_name("name")
-    if name_node is None and node.type == "anonymous_function":
-        name_node = _binding_name_node(node)
-    return name_node.text.decode() if (name_node and name_node.text) else "<unknown>"
-
-
-def _binding_name_node(node: Node) -> Node | None:
+def _function_unit(node: Node, source: bytes) -> CodeUnit | None:
+    if node.type == "lambda_literal":
+        # Lambda statements are direct children, with no separate body node.
+        arrow = _child_of_type(node, "->")
+        header_end = arrow.end_byte if arrow else node.children[0].end_byte
+        text = "{" + source[header_end : node.end_byte].decode()
+        body_nodes = [c for c in node.named_children if c.start_byte >= header_end]
+    else:
+        wrapper = _child_of_type(node, "function_body") or _child_of_type(node, "block")
+        if wrapper is None:  # abstract function or body-less constructor
+            return None
+        value = _last_named(wrapper) if wrapper.type == "function_body" else wrapper
+        if value is None:
+            return None
+        # An expression body's `=` belongs to the wrapper, not the body value.
+        header_end = wrapper.start_byte
+        text = source[value.start_byte : value.end_byte].decode()
+        body_nodes = [value]
     parent = node.parent
-    if parent is None:
-        return None
-    if parent.type == "property_declaration":  # val f = fun() { ... }
-        declaration = next(
-            (c for c in parent.children if c.type == "variable_declaration"), None
-        )
-        return _last_identifier(declaration) if declaration else None
-    if parent.type == "assignment":  # this.f = fun() { ... }
-        target = parent.children[0] if parent.children else None
-        return _last_identifier(target) if target else None
+    anchor = (
+        parent
+        if parent is not None
+        and parent.type in {"property_declaration", "assignment"}
+        and node.type in {"anonymous_function", "lambda_literal"}
+        else node
+    )
+    return CodeUnit(
+        name="<unset>",
+        body=text,
+        start_line=node.start_point[0] + 1,
+        end_line=node.end_point[0] + 1,
+        body_node_count=sum(_count_named_nodes(n) for n in body_nodes)
+        + (node.type == "lambda_literal"),
+        body_hash=hash_body(text),
+        kind="function",
+        context=(
+            _lambda_context(node, source, header_end)
+            if node.type == "lambda_literal"
+            else source[anchor.start_byte : header_end].decode().strip() or None
+        ),
+    )
+
+
+def _lambda_context(node: Node, source: bytes, header_end: int) -> str | None:
+    parent = node.parent
+    label = ""
+    if parent is not None and parent.type in {"property_declaration", "assignment"}:
+        label = source[parent.start_byte : node.start_byte].decode().strip()
+    else:
+        if parent is not None and parent.type == "value_argument":
+            parent = parent.parent
+        call = parent.parent if parent is not None else None
+        if call is not None and call.type == "call_expression":
+            callee = call.children[0]
+            while callee.type == "call_expression":
+                callee = callee.children[0]
+            if callee.type == "navigation_expression":
+                callee = callee.named_children[-1]
+            label = source[callee.start_byte : callee.end_byte].decode()
+    parameters = source[node.children[0].end_byte : header_end].decode().strip()
+    return " ".join(part for part in (label, parameters) if part) or None
+
+
+def _block_entries(node: Node) -> list[tuple[str, Node, list[Node]]]:
+    if node.type == "if_expression":
+        return _if_entries(node)
+    if node.type in _LOOP_TYPES:
+        return _loop_entries(node)
+    if node.type == "try_expression":
+        return _try_entries(node)
+    if node.type == "when_expression":
+        return _when_entries(node)
+    return []
+
+
+def _if_entries(node: Node) -> list[tuple[str, Node, list[Node]]]:
+    # The consequence follows the `)` closing the condition; the alternative
+    # follows `else`. An `else if` alternative is a nested if_expression the walk
+    # reaches on its own, so _is_extractable skips it here.
+    entries: list[tuple[str, Node, list[Node]]] = []
+    consequence = _first_named_after(node, ")")
+    if consequence is not None and _is_extractable(consequence):
+        entries.append((_header(node, consequence), node, [consequence]))
+    alternative = _first_named_after(node, "else")
+    if alternative is not None and _is_extractable(alternative):
+        else_keyword = _child_of_type(node, "else") or alternative
+        entries.append(("else", else_keyword, [alternative]))
+    return entries
+
+
+def _loop_entries(node: Node) -> list[tuple[str, Node, list[Node]]]:
+    # for/while bodies follow the `)` closing the header; a do-while body
+    # follows the `do` keyword (its `while (...)` comes after).
+    anchor = "do" if node.type == "do_while_statement" else ")"
+    body = _first_named_after(node, anchor)
+    if body is None or not _is_extractable(body):
+        return []
+    return [(_header(node, body), node, [body])]
+
+
+def _try_entries(node: Node) -> list[tuple[str, Node, list[Node]]]:
+    entries: list[tuple[str, Node, list[Node]]] = []
+    body = _child_of_type(node, "block")
+    if body is not None:
+        entries.append((_header(node, body), node, [body]))
+    for child in node.children:
+        if child.type == "catch_block":
+            catch_body = _child_of_type(child, "block")
+            if catch_body is not None:
+                entries.append((_header(child, catch_body), child, [catch_body]))
+        elif child.type == "finally_block":
+            finally_body = _child_of_type(child, "block")
+            if finally_body is not None:
+                entries.append(("finally", child, [finally_body]))
+    return entries
+
+
+def _when_entries(node: Node) -> list[tuple[str, Node, list[Node]]]:
+    entries: list[tuple[str, Node, list[Node]]] = []
+    for entry in node.children:
+        if entry.type != "when_entry":
+            continue
+        body = _first_named_after(entry, "->")
+        if body is not None and _is_extractable(body):
+            entries.append((_header(entry, body), entry, [body]))
+    return entries
+
+
+def _is_extractable(branch: Node) -> bool:
+    # A branch that is itself a control-flow construct becomes its own unit;
+    # wrapping it here would only duplicate that unit.
+    return branch.type not in _CONTROL_FLOW_TYPES
+
+
+def _header(node: Node, body: Node) -> str:
+    # The source before the body: a signature, a block header, or a bare
+    # keyword (`do`, `else ->`).
+    text = node.text
+    assert text is not None
+    return text[: body.start_byte - node.start_byte].decode().strip()
+
+
+def _block_unit(
+    context: str, start: Node, body_nodes: list[Node], source: bytes
+) -> CodeUnit:
+    body = source[body_nodes[0].start_byte : body_nodes[-1].end_byte].decode()
+    return CodeUnit(
+        name="<unset>",
+        body=body,
+        start_line=start.start_point[0] + 1,
+        end_line=body_nodes[-1].end_point[0] + 1,
+        body_node_count=sum(_count_named_nodes(n) for n in body_nodes),
+        body_hash=hash_body(body),
+        kind="block",
+        context=context,
+    )
+
+
+def _first_named_after(node: Node, token: str) -> Node | None:
+    seen = False
+    for child in node.children:
+        if child.type == token:
+            seen = True
+        elif seen and child.is_named:
+            return child
     return None
 
 
-def _last_identifier(node: Node) -> Node | None:
-    if node.type == "identifier":
-        return node
-    return next((c for c in reversed(node.children) if c.type == "identifier"), None)
+def _last_named(node: Node) -> Node | None:
+    return next((c for c in reversed(node.children) if c.is_named), None)
 
 
-def _body_without_comments(function: Node, source: bytes) -> str:
-    comment_spans: list[tuple[int, int]] = []
-    _collect_comment_spans(function, comment_spans)
-
-    pieces: list[bytes] = []
-    cursor = function.start_byte
-    for start, end in sorted(comment_spans):
-        pieces.append(source[cursor:start])
-        cursor = end
-    pieces.append(source[cursor : function.end_byte])
-    return b"".join(pieces).decode()
-
-
-def _collect_comment_spans(node: Node, spans: list[tuple[int, int]]) -> None:
-    if node.type in _COMMENT_TYPES:
-        spans.append((node.start_byte, node.end_byte))
-        return
-    for child in node.children:
-        _collect_comment_spans(child, spans)
-
-
-def _count_body_nodes(function_declaration: Node) -> int:
-    body = next(
-        (c for c in function_declaration.children if c.type == "function_body"), None
-    )
-    if body is None:
-        return 0
-    return _count_named_nodes(body)
+def _child_of_type(node: Node, type_: str) -> Node | None:
+    return next((c for c in node.children if c.type == type_), None)
 
 
 def _count_named_nodes(node: Node) -> int:

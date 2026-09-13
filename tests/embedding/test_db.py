@@ -16,9 +16,9 @@ from slopo.embedding.models import EmbeddedUnit
 def test_count_unembedded_units_ignores_embedded_hashes(conn: sqlite3.Connection):
     conn.executescript("""
         INSERT INTO files (id, path, mtime) VALUES (1, 'File.java', 0);
-        INSERT INTO code_units (id, file_id, name, body, start_line, end_line, body_node_count, body_hash)
+        INSERT INTO code_units (id, file_id, context, body, start_line, end_line, body_node_count, body_hash)
             VALUES (1, 1, 'a', 'a', 1, 2, 3, 'hashA');
-        INSERT INTO code_units (id, file_id, name, body, start_line, end_line, body_node_count, body_hash)
+        INSERT INTO code_units (id, file_id, context, body, start_line, end_line, body_node_count, body_hash)
             VALUES (2, 1, 'b', 'b', 1, 2, 3, 'hashB');
         INSERT INTO embeddings (body_hash, embedding) VALUES ('hashB', X'0000803f');
     """)
@@ -29,9 +29,9 @@ def test_count_unembedded_units_ignores_embedded_hashes(conn: sqlite3.Connection
 def test_count_unembedded_units_counts_each_hash_once(conn: sqlite3.Connection):
     conn.executescript("""
         INSERT INTO files (id, path, mtime) VALUES (1, 'File.java', 0);
-        INSERT INTO code_units (id, file_id, name, body, start_line, end_line, body_node_count, body_hash)
+        INSERT INTO code_units (id, file_id, context, body, start_line, end_line, body_node_count, body_hash)
             VALUES (1, 1, 'a', 'a', 1, 2, 3, 'hashA');
-        INSERT INTO code_units (id, file_id, name, body, start_line, end_line, body_node_count, body_hash)
+        INSERT INTO code_units (id, file_id, context, body, start_line, end_line, body_node_count, body_hash)
             VALUES (2, 1, 'a', 'a', 1, 2, 3, 'hashA');
     """)
 
@@ -44,9 +44,9 @@ def test_count_unembedded_units_counts_each_hash_once(conn: sqlite3.Connection):
 def test_load_next_batch_skips_already_embedded_hashes(conn: sqlite3.Connection):
     conn.executescript("""
         INSERT INTO files (id, path, mtime) VALUES (1, 'File.java', 0);
-        INSERT INTO code_units (id, file_id, name, body, start_line, end_line, body_node_count, body_hash)
+        INSERT INTO code_units (id, file_id, context, body, start_line, end_line, body_node_count, body_hash)
             VALUES (1, 1, 'a', 'a', 1, 2, 3, 'hashA');
-        INSERT INTO code_units (id, file_id, name, body, start_line, end_line, body_node_count, body_hash)
+        INSERT INTO code_units (id, file_id, context, body, start_line, end_line, body_node_count, body_hash)
             VALUES (2, 1, 'b', 'b', 1, 2, 3, 'hashB');
         INSERT INTO embeddings (body_hash, embedding) VALUES ('hashA', X'0000803f');
     """)
@@ -59,9 +59,9 @@ def test_load_next_batch_skips_already_embedded_hashes(conn: sqlite3.Connection)
 def test_load_next_batch_emits_each_hash_once(conn: sqlite3.Connection):
     conn.executescript("""
         INSERT INTO files (id, path, mtime) VALUES (1, 'File.java', 0);
-        INSERT INTO code_units (id, file_id, name, body, start_line, end_line, body_node_count, body_hash)
+        INSERT INTO code_units (id, file_id, context, body, start_line, end_line, body_node_count, body_hash)
             VALUES (1, 1, 'a', 'a', 1, 2, 3, 'hashA');
-        INSERT INTO code_units (id, file_id, name, body, start_line, end_line, body_node_count, body_hash)
+        INSERT INTO code_units (id, file_id, context, body, start_line, end_line, body_node_count, body_hash)
             VALUES (2, 1, 'a', 'a', 1, 2, 3, 'hashA');
     """)
 
@@ -76,11 +76,11 @@ def test_load_next_batch_emits_each_hash_once(conn: sqlite3.Connection):
 def test_load_embeddings_for_all_embedded_units(conn: sqlite3.Connection):
     conn.executescript("""
         INSERT INTO files (id, path, mtime) VALUES (1, 'File.java', 0);
-        INSERT INTO code_units (id, file_id, name, body, start_line, end_line, body_node_count, body_hash)
+        INSERT INTO code_units (id, file_id, context, body, start_line, end_line, body_node_count, body_hash)
             VALUES (1, 1, 'a', 'a', 1, 2, 3, 'hashA');
-        INSERT INTO code_units (id, file_id, name, body, start_line, end_line, body_node_count, body_hash)
+        INSERT INTO code_units (id, file_id, context, body, start_line, end_line, body_node_count, body_hash)
             VALUES (2, 1, 'a', 'a', 1, 2, 3, 'hashA');
-        INSERT INTO code_units (id, file_id, name, body, start_line, end_line, body_node_count, body_hash)
+        INSERT INTO code_units (id, file_id, context, body, start_line, end_line, body_node_count, body_hash)
             VALUES (3, 1, 'b', 'b', 1, 2, 3, 'hashB');
         INSERT INTO embeddings (body_hash, embedding) VALUES ('hashA', X'0000803f');
     """)
@@ -94,7 +94,7 @@ def test_load_embeddings_for_all_embedded_units(conn: sqlite3.Connection):
 def test_save_then_load_embeddings_round_trips_the_vector(conn: sqlite3.Connection):
     conn.executescript("""
         INSERT INTO files (id, path, mtime) VALUES (1, 'File.java', 0);
-        INSERT INTO code_units (id, file_id, name, body, start_line, end_line, body_node_count, body_hash)
+        INSERT INTO code_units (id, file_id, context, body, start_line, end_line, body_node_count, body_hash)
             VALUES (1, 1, 'a', 'a', 1, 2, 3, 'hashA');
     """)
 

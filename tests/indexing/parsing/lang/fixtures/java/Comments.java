@@ -9,6 +9,14 @@ public class Comments {
         /* a block comment
            spanning lines */
         String url = "http://not-a-comment";
+
+        switch (code) {
+            case 1:
+                prepare();
+                // a comment between statements
+                dispatch();
+        }
+
         return sum;
     }
 }

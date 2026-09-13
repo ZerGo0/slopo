@@ -22,9 +22,12 @@ _CONFIG = Config(
     embedding_batch_size=100,
     embedding_batch_chars=10000,
     embedding_request_delay=0,
-    similarity_threshold=0.9,
-    rerank_threshold=0.93,
+    analyze_similarity_threshold=0.9,
+    analyze_rerank_threshold=0.93,
+    review_similarity_threshold=0.9,
+    review_rerank_threshold=0.93,
     body_node_count_threshold=10,
+    block_node_count_threshold=30,
 )
 
 

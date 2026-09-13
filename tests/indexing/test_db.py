@@ -26,17 +26,19 @@ def test_inserts_unit_fields_into_matching_columns(conn: sqlite3.Connection):
         end_line=4,
         body_node_count=7,
         body_hash="abc123",
+        kind="function",
+        context="int increment(int a)",
     )
 
     insert_file_units(conn, file_id, [unit])
 
     row = conn.execute(
-        "SELECT file_id, name, body, start_line, end_line, body_node_count, body_hash"
+        "SELECT file_id, context, body, start_line, end_line, body_node_count, body_hash"
         " FROM code_units"
     ).fetchone()
     assert row == (
         file_id,
-        "increment",
+        "int increment(int a)",
         "int increment(int a) { return a + 1; }",
         2,
         4,
@@ -48,19 +50,25 @@ def test_inserts_unit_fields_into_matching_columns(conn: sqlite3.Connection):
 def test_inserts_all_units_with_sequential_ids(conn: sqlite3.Connection):
     file_id = _insert_file(conn)
     units = [
-        CodeUnit("increment", "body1", 1, 2, 3, "hash1"),
-        CodeUnit("decrement", "body2", 4, 5, 6, "hash2"),
+        CodeUnit(
+            "increment", "body1", 1, 2, 3, "hash1", kind="function", context="ctx1"
+        ),
+        CodeUnit(
+            "decrement", "body2", 4, 5, 6, "hash2", kind="function", context="ctx2"
+        ),
     ]
 
     insert_file_units(conn, file_id, units)
 
-    rows = conn.execute("SELECT id, name FROM code_units ORDER BY id").fetchall()
-    assert rows == [(1, "increment"), (2, "decrement")]
+    rows = conn.execute("SELECT id, context FROM code_units ORDER BY id").fetchall()
+    assert rows == [(1, "ctx1"), (2, "ctx2")]
 
 
 def test_deletes_file_and_its_units(conn: sqlite3.Connection):
     file_id = _insert_file(conn)
-    insert_file_units(conn, file_id, [CodeUnit("dup", "body", 1, 2, 3, "hash")])
+    insert_file_units(
+        conn, file_id, [CodeUnit("dup", "body", 1, 2, 3, "hash", kind="function")]
+    )
 
     delete_files(conn, [file_id])
 
@@ -76,7 +84,9 @@ def test_deletes_files_spanning_multiple_chunks(
     for i in range(5):
         conn.execute("INSERT INTO files (path, mtime) VALUES (?, 0)", (f"F{i}.java",))
         file_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-        insert_file_units(conn, file_id, [CodeUnit("a", "body", 1, 2, 3, f"h{i}")])
+        insert_file_units(
+            conn, file_id, [CodeUnit("a", "body", 1, 2, 3, f"h{i}", kind="function")]
+        )
         file_ids.append(file_id)
 
     delete_files(conn, file_ids)
@@ -87,7 +97,9 @@ def test_deletes_files_spanning_multiple_chunks(
 
 def test_deletes_units_of_modified_file(conn: sqlite3.Connection):
     file_id = _insert_file(conn)
-    insert_file_units(conn, file_id, [CodeUnit("dup", "body", 1, 2, 3, "hash")])
+    insert_file_units(
+        conn, file_id, [CodeUnit("dup", "body", 1, 2, 3, "hash", kind="function")]
+    )
 
     delete_file_units(conn, file_id)
 
@@ -106,7 +118,9 @@ def test_prune_removes_embeddings_with_no_remaining_units(conn: sqlite3.Connecti
 
 def test_prune_keeps_embedding_while_a_unit_shares_its_hash(conn: sqlite3.Connection):
     file_id = _insert_file(conn)
-    insert_file_units(conn, file_id, [CodeUnit("a", "body", 1, 2, 3, "shared")])
+    insert_file_units(
+        conn, file_id, [CodeUnit("a", "body", 1, 2, 3, "shared", kind="function")]
+    )
     conn.execute(
         "INSERT INTO embeddings (body_hash, embedding) VALUES ('shared', X'0000803f')"
     )

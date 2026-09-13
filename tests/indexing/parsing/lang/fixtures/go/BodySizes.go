@@ -1,8 +1,5 @@
 package example
 
-// externalFunction is implemented in assembly elsewhere, so it has no body.
-func externalFunction(a, b int) int
-
 func emptyBody() {}
 
 func withLogic(items []int) (int, error) {

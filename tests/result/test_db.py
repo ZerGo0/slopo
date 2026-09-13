@@ -3,16 +3,16 @@ import sqlite3
 import pytest
 
 from slopo import db
-from slopo.result.db import load_units
+from slopo.result.db import load_duplicate_hashes, load_units
 from slopo.result.models import UnitRecord
 
 _SETUP = """
     INSERT INTO files (id, path, mtime) VALUES (1, 'File.java', 0);
-    INSERT INTO code_units (id, file_id, name, body, start_line, end_line, body_node_count, body_hash)
-        VALUES (1, 1, 'a', 'body-a', 1, 2, 3, 'dup'),
-               (2, 1, 'b', 'body-b', 1, 2, 3, 'dup'),
-               (3, 1, 'c', 'body-c', 1, 2, 3, 'dup'),
-               (4, 1, 'd', 'body-d', 1, 2, 3, 'unique');
+    INSERT INTO code_units (id, file_id, context, body, start_line, end_line, body_node_count, body_hash)
+        VALUES (1, 1, 'ctx-a', 'body-a', 1, 2, 3, 'dup'),
+               (2, 1, 'ctx-b', 'body-b', 1, 2, 3, 'dup'),
+               (3, 1, 'ctx-c', 'body-c', 1, 2, 3, 'dup'),
+               (4, 1, 'ctx-d', 'body-d', 1, 2, 3, 'unique');
 """
 
 
@@ -25,7 +25,7 @@ def test_loads_only_the_requested_units(conn: sqlite3.Connection):
     assert units[1] == UnitRecord(
         unit_id=1,
         file_path="File.java",
-        name="a",
+        context="ctx-a",
         start_line=1,
         end_line=2,
         body="body-a",
@@ -42,3 +42,9 @@ def test_loads_units_spanning_multiple_chunks(
     units = load_units(conn, {1, 2, 3, 4})
 
     assert set(units.keys()) == {1, 2, 3, 4}
+
+
+def test_returns_only_hashes_shared_by_more_than_one_unit(conn: sqlite3.Connection):
+    conn.executescript(_SETUP)
+
+    assert load_duplicate_hashes(conn) == {"dup"}

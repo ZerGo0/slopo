@@ -18,4 +18,11 @@ class Processor {
             println("done")
         }
     }
+
+    fun summarize(values: List<Int>): Int {
+        val total = values.fold(0) { acc, v ->
+            acc + v
+        }
+        return total
+    }
 }

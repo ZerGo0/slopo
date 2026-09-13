@@ -8,8 +8,7 @@ abstract class Repository
     {
     }
 
-    #[Deprecated]
-    public function annotatedWithLogic(array $items): int
+    public function withLogic(array $items): int
     {
         $total = 0;
         foreach ($items as $item) {

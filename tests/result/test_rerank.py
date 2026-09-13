@@ -18,7 +18,7 @@ def unit(path: str, start: int = 1, end: int = 10) -> UnitRecord:
     return UnitRecord(
         unit_id=0,
         file_path=path,
-        name="",
+        context="",
         start_line=start,
         end_line=end,
         body="",

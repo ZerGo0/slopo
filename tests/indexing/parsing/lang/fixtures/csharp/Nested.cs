@@ -1,22 +1,20 @@
-namespace Orders;
+namespace Control;
 
-public class OrderService
+public class Analyzer
 {
-    public decimal Total(decimal[] amounts)
+    public int Count(int[][] rows, int threshold)
     {
-        decimal sum = 0;
-        foreach (var amount in amounts)
+        int hits = 0;
+        foreach (var row in rows)
         {
-            sum += amount;
+            for (int i = 0; i < row.Length; i++)
+            {
+                if (row[i] > threshold)
+                {
+                    hits += 1;
+                }
+            }
         }
-        return sum;
-    }
-
-    private class Validator
-    {
-        public bool IsValid(decimal amount)
-        {
-            return amount >= 0;
-        }
+        return hits;
     }
 }

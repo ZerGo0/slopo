@@ -42,13 +42,15 @@ def create_db(cfg: Config) -> sqlite3.Connection:
     create_schema(conn)
     conn.execute(
         "INSERT INTO metadata"
-        " (id, source_dir, embedding_model, embedding_dimensions, body_node_count_threshold)"
-        " VALUES (1, ?, ?, ?, ?)",
+        " (id, source_dir, embedding_model, embedding_dimensions,"
+        " body_node_count_threshold, block_node_count_threshold)"
+        " VALUES (1, ?, ?, ?, ?, ?)",
         (
             str(cfg.source_dir.resolve()),
             cfg.embedding_model,
             cfg.embedding_dimensions,
             cfg.body_node_count_threshold,
+            cfg.block_node_count_threshold,
         ),
     )
     conn.commit()
@@ -76,7 +78,8 @@ def _check_schema_version(conn: sqlite3.Connection) -> None:
 
 def _check_metadata(conn: sqlite3.Connection, cfg: Config) -> None:
     stored = conn.execute(
-        "SELECT source_dir, embedding_model, embedding_dimensions, body_node_count_threshold"
+        "SELECT source_dir, embedding_model, embedding_dimensions,"
+        " body_node_count_threshold, block_node_count_threshold"
         " FROM metadata WHERE id = 1"
     ).fetchone()
 
@@ -99,4 +102,10 @@ def _check_metadata(conn: sqlite3.Connection, cfg: Config) -> None:
             "body_node_count_threshold",
             str(stored[3]),
             str(cfg.body_node_count_threshold),
+        )
+    if stored[4] != cfg.block_node_count_threshold:
+        raise ConfigurationMismatchError(
+            "block_node_count_threshold",
+            str(stored[4]),
+            str(cfg.block_node_count_threshold),
         )

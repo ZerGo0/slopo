@@ -1,13 +1,15 @@
 const square = (n: number): number => n * n;
 
-const noop = (): void => {};
+function noop(): void {}
 
-function buildConfig(env: string): Config {
-  const base: Config = { env, retries: 3, timeout: 30 };
-  const overrides = env === "prod" ? { retries: 5 } : {};
-  const merged = { ...base, ...overrides };
-  if (merged.timeout < 0) {
-    throw new Error("invalid timeout");
+async function loadAll(ids: number[], limit: number): Promise<Item[]> {
+  const results: Item[] = [];
+  for (const id of ids) {
+    if (results.length >= limit) {
+      break;
+    }
+    const item = await fetch(`/items/${id}`);
+    results.push(await item.json());
   }
-  return merged;
+  return results;
 }

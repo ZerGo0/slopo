@@ -7,7 +7,7 @@ _SETUP = """
     INSERT INTO files (id, path, mtime)
         VALUES (1, 'src/Foo.java', 0),
                (2, 'src/Bar.java', 0);
-    INSERT INTO code_units (id, file_id, name, body, start_line, end_line, body_node_count, body_hash)
+    INSERT INTO code_units (id, file_id, context, body, start_line, end_line, body_node_count, body_hash)
         VALUES (1, 1, 'a', 'body-a', 1, 5, 3, 'h1'),
                (2, 1, 'b', 'body-b', 10, 20, 3, 'h2'),
                (3, 2, 'c', 'body-c', 3, 7, 3, 'h3');

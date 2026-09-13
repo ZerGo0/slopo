@@ -7,18 +7,14 @@ public interface IShape
     double Area();
 }
 
-public class Circle : IShape
+public class Circle
 {
     public void Reset()
     {
     }
 
-    public double Radius()
-    {
-        return _radius * _radius;
-    }
+    public double Radius() => _radius;
 
-    [Obsolete("Use Area instead")]
     public double Diameter()
     {
         double radius = 2.0;

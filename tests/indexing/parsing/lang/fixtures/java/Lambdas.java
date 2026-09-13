@@ -23,4 +23,8 @@ public class Processor {
             System.out.println("done");
         };
     }
+
+    public Function<String, String> createTrimmer() {
+        return text -> text.trim();
+    }
 }

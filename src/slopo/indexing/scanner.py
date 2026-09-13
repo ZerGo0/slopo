@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator
 
@@ -10,6 +11,12 @@ from slopo.indexing.parsing.registry import get_parser, supported_extensions
 logger = logging.getLogger(__name__)
 
 _MAX_BODY_CHARS = 10_000
+
+
+@dataclass(frozen=True)
+class NodeCountThresholds:
+    function: int
+    block: int
 
 
 def scan_directory(root: Path, exclude: list[str]) -> Iterator[str]:
@@ -35,11 +42,15 @@ def parse_file(path: Path) -> list[CodeUnit]:
 
 
 def filter_units(
-    units: list[CodeUnit], body_node_count_threshold: int
+    units: list[CodeUnit], thresholds: NodeCountThresholds
 ) -> list[CodeUnit]:
     return [
         u
         for u in units
-        if u.body_node_count >= body_node_count_threshold
+        if u.body_node_count >= _threshold_for(u, thresholds)
         and len(u.body) <= _MAX_BODY_CHARS
     ]
+
+
+def _threshold_for(unit: CodeUnit, thresholds: NodeCountThresholds) -> int:
+    return thresholds.block if unit.kind == "block" else thresholds.function

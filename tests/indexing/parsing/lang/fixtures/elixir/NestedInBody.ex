@@ -4,8 +4,4 @@ defmodule Tasks do
       IO.puts(label)
     end
   end
-
-  def double_all(numbers) do
-    Enum.map(numbers, fn n -> n * 2 end)
-  end
 end

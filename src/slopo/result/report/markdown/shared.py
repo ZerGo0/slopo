@@ -56,3 +56,14 @@ def group_by_body_hash(
             order.append(unit.body_hash)
         groups[unit.body_hash].append(unit)
     return [groups[h] for h in order]
+
+
+def group_by_context(units: list[UnitRecord]) -> list[list[UnitRecord]]:
+    groups: dict[str | None, list[UnitRecord]] = {}
+    order: list[str | None] = []
+    for unit in units:
+        if unit.context not in groups:
+            groups[unit.context] = []
+            order.append(unit.context)
+        groups[unit.context].append(unit)
+    return [groups[context] for context in order]

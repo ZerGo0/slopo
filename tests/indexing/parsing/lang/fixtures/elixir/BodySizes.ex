@@ -4,7 +4,6 @@ defmodule Sizes do
   def empty_body do
   end
 
-  @doc "Sums a list of amounts, ignoring nil entries."
   def total(entries) do
     entries
     |> Enum.reject(&is_nil/1)

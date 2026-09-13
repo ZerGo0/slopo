@@ -55,9 +55,12 @@ class Config:
     embedding_batch_size: int
     embedding_batch_chars: int
     embedding_request_delay: int
-    similarity_threshold: float
-    rerank_threshold: float
+    analyze_similarity_threshold: float
+    analyze_rerank_threshold: float
+    review_similarity_threshold: float
+    review_rerank_threshold: float
     body_node_count_threshold: int
+    block_node_count_threshold: int
 
 
 def load_config(path: Path) -> Config:
@@ -90,9 +93,12 @@ _KNOWN_CONFIG_KEYS = {
     "embedding_batch_size",
     "embedding_batch_chars",
     "embedding_request_delay",
-    "similarity_threshold",
-    "rerank_threshold",
+    "analyze_similarity_threshold",
+    "analyze_rerank_threshold",
+    "review_similarity_threshold",
+    "review_rerank_threshold",
     "body_node_count_threshold",
+    "block_node_count_threshold",
 }
 
 
@@ -130,14 +136,23 @@ def parse_config(raw: Any, source: str) -> Config:
         embedding_request_delay=_optional_non_negative_int(
             raw, "embedding_request_delay", source, default=0
         ),
-        similarity_threshold=_optional_positive_float(
-            raw, "similarity_threshold", source, default=0.92
+        analyze_similarity_threshold=_optional_positive_float(
+            raw, "analyze_similarity_threshold", source, default=0.93
         ),
-        rerank_threshold=_optional_positive_float(
-            raw, "rerank_threshold", source, default=0.94
+        analyze_rerank_threshold=_optional_positive_float(
+            raw, "analyze_rerank_threshold", source, default=0.95
+        ),
+        review_similarity_threshold=_optional_positive_float(
+            raw, "review_similarity_threshold", source, default=0.92
+        ),
+        review_rerank_threshold=_optional_positive_float(
+            raw, "review_rerank_threshold", source, default=0.94
         ),
         body_node_count_threshold=_optional_positive_int(
-            raw, "body_node_count_threshold", source, default=10
+            raw, "body_node_count_threshold", source, default=20
+        ),
+        block_node_count_threshold=_optional_positive_int(
+            raw, "block_node_count_threshold", source, default=60
         ),
     )
 

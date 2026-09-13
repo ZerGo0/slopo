@@ -1,6 +1,6 @@
 import sqlite3
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 # Bump SCHEMA_VERSION whenever schema changes
@@ -15,7 +15,8 @@ def create_schema(conn: sqlite3.Connection) -> None:
             source_dir                 TEXT NOT NULL,
             embedding_model            TEXT NOT NULL,
             embedding_dimensions       INTEGER NOT NULL,
-            body_node_count_threshold  INTEGER NOT NULL
+            body_node_count_threshold  INTEGER NOT NULL,
+            block_node_count_threshold INTEGER NOT NULL
         );
 
         CREATE TABLE files (
@@ -27,7 +28,7 @@ def create_schema(conn: sqlite3.Connection) -> None:
         CREATE TABLE code_units (
             id               INTEGER PRIMARY KEY,
             file_id          INTEGER NOT NULL REFERENCES files(id),
-            name             TEXT NOT NULL,
+            context          TEXT,
             body             TEXT NOT NULL,
             start_line       INTEGER NOT NULL,
             end_line         INTEGER NOT NULL,

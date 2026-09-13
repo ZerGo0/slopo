@@ -10,7 +10,7 @@ def unit(unit_id: int, file_path: str, body_hash: str) -> UnitRecord:
     return UnitRecord(
         unit_id=unit_id,
         file_path=file_path,
-        name="",
+        context="",
         start_line=1,
         end_line=10,
         body="",

@@ -1,10 +1,13 @@
 /**
- * Computes the total price including tax.
- * @param amount the pre-tax amount
+ * Combines two values.
+ * @param a
+ * @param b
  */
-function totalWithTax(amount: number): number {
-  // apply the standard rate
-  const rate = 0.2; /* twenty percent */
-  const docsUrl = "https://example.com/* not a comment */";
-  return amount * (1 + rate);
+function withComments(a: number, b: number): number {
+  // a leading line comment
+  const sum = a + b; // a trailing line comment
+  /* a block comment
+     spanning lines */
+  const url = "https://not-a-comment";
+  return sum;
 }

@@ -39,24 +39,27 @@ def test_returns_config_with_defaults_when_only_required_fields_present():
     assert cfg.embedding_batch_size == 100
     assert cfg.embedding_batch_chars == 100_000
     assert cfg.embedding_request_delay == 0
-    assert cfg.similarity_threshold == 0.92
-    assert cfg.rerank_threshold == 0.94
-    assert cfg.body_node_count_threshold == 10
+    assert cfg.analyze_similarity_threshold == 0.93
+    assert cfg.analyze_rerank_threshold == 0.95
+    assert cfg.review_similarity_threshold == 0.92
+    assert cfg.review_rerank_threshold == 0.94
+    assert cfg.body_node_count_threshold == 20
+    assert cfg.block_node_count_threshold == 60
 
 
 def test_overrides_defaults_when_optional_fields_present():
     cfg = parse_config(
         _minimal_raw(
             embedding_batch_size=50,
-            similarity_threshold=0.85,
-            rerank_threshold=0.95,
+            analyze_similarity_threshold=0.85,
+            review_rerank_threshold=0.99,
         ),
         source="<test>",
     )
 
     assert cfg.embedding_batch_size == 50
-    assert cfg.similarity_threshold == 0.85
-    assert cfg.rerank_threshold == 0.95
+    assert cfg.analyze_similarity_threshold == 0.85
+    assert cfg.review_rerank_threshold == 0.99
 
 
 # --- field validation ---
@@ -97,9 +100,9 @@ def test_negative_optional_int_rejected():
 
 def test_wrong_type_optional_float_rejected():
     with pytest.raises(
-        ConfigError, match="'similarity_threshold' must be a number, got '0.9'"
+        ConfigError, match="'analyze_similarity_threshold' must be a number, got '0.9'"
     ):
-        parse_config(_minimal_raw(similarity_threshold="0.9"), source="<test>")
+        parse_config(_minimal_raw(analyze_similarity_threshold="0.9"), source="<test>")
 
 
 def test_unrecognized_key_rejected():

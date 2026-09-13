@@ -8,8 +8,8 @@ To learn what these AI models allow to detect, where they are weak, and which on
 
 ### What it can do
 
-- Review recent changes to find similar code between the changed code and the rest of the codebase. For reviewing AI-generated code before committing.
-- Analyze the whole codebase to find similar code. For refactoring and maintenance.
+- Find similar code between recent Git changes and the rest of the codebase.
+- Analyze the whole codebase to find similar code.
 
 ### Supported languages
 
@@ -17,11 +17,17 @@ Python, TypeScript, JavaScript, Java, Kotlin, C#, Go, Rust, PHP, Elixir
 
 ## Problems it solves
 
-It augments AI coding agents' capabilities by allowing them to see duplicated code they are blind to.
-
 Agents see only the part of the codebase they are currently working on, including related code found by references, similar names, etc. Usually, especially in smaller projects or with good architecture, they are able to spot existing implementations related to what they are working on.
 
 Sometimes, especially in larger projects or with bad architecture, they miss a solution that already exists somewhere and implement it again. This is not copy-paste; this is a similar implementation for the same problem, which is hard to detect for humans, AI, and other tools. **Slopo targets this blind spot by being able to see similar code across the whole codebase, no matter how big or poorly maintained it is.**
+
+The problem grows with scale:
+
+1. When reviewing a small change, agents can make a focused analysis and find similar implementations.
+2. When they work on a large change in a messy codebase, review becomes less reliable and more costly.
+3. Analyzing the whole codebase to identify clusters of similar code is not a task for agents at all.
+
+Slopo solves 2. and 3.
 
 ### Additional benefits
 
@@ -56,7 +62,11 @@ In addition to detecting non-exact code duplication, Slopo focuses on code sitti
 
 The result is clusters of similar code, ranked by similarity and by distance in the codebase. These are meant as input for your AI coding agent, which can check whether a cluster is a real duplicate.
 
-[Example report](doc/example-report) generated from Slopo code (`src` directory, git tag `v0.2.0`).
+## Real reports
+
+The [Example reports from real projects](doc/example-reports.md) page contains analysis results with explanations from selected open-source projects.
+
+You can analyze these projects yourself to get familiar with the tool and its capabilities.
 
 ## Accessing embedding model
 
@@ -234,7 +244,7 @@ Most configuration is done with a configuration file with two exceptions:
 1. The location of the configuration file can be overridden with the `--config` option.
 2. The API key can be set with the `SLOPO_EMBEDDING_API_KEY` environment variable, also picked up from a `.env` file in the current directory.
 
-**Be aware that some parameters can't be changed after first indexing.** You need to remove `slopo.db` and index/embed from the beginning: `source_dir`, `embedding_model`, `embedding_dimensions`, `body_node_count_threshold`.
+**Be aware that some parameters can't be changed after first indexing.** You need to remove `slopo.db` and index/embed from the beginning: `source_dir`, `embedding_model`, `embedding_dimensions`, `body_node_count_threshold`, `block_node_count_threshold`.
 
 ### All configurable parameters
 
@@ -255,9 +265,27 @@ embedding_params:
 ```
 - `embedding_batch_size` and `embedding_batch_chars`: Requests to the embedding API are batched for performance. Defaults are fine for most cases.
 - `embedding_request_delay`: Delay in seconds after every batched request, by default no delay. Increase if you reach rate limits.
-- `similarity_threshold`: Controls minimal cosine similarity between embeddings.
-- `rerank_threshold`: Controls minimal similarity after applying a boost reflecting distance in the codebase.
-- `body_node_count_threshold`: Number of AST nodes inside the body (excluding signature and annotations). This value reflects the minimum code complexity of the included code unit, more precise than text length. Increase if you notice unwanted, too-small code units in the report.
+- `analyze_similarity_threshold` and `review_similarity_threshold`: Controls minimal cosine similarity between embeddings.
+- `analyze_rerank_threshold` and `review_rerank_threshold`: Controls minimal similarity after applying a boost reflecting distance in the codebase.
+- `body_node_count_threshold` and `block_node_count_threshold`: Minimal number of AST nodes inside the function body or block of code.
+
+## How code is split into units
+
+A code unit is an extracted piece of code, which is compared against other units using their embeddings. The way source code is chunked has a significant effect on results.
+
+There are two groups of code units:
+1. Function-like constructs depending on language: function, method, anonymous function, closure, etc. This is a piece of code contained in some construct. Called `function` here.
+2. Code block inside a conditional, loop, exception handling, or similar construct depending on language. This is part of a function or other block, and surrounded by control-flow syntax. Called `block` here.
+
+You can check tests for your target language at [tests/indexing/parsing/lang](tests/indexing/parsing/lang) to see what constructs are extracted. The `fixtures` directory contains example code you can compare with tests.
+
+Code units naturally overlap, including deeper structures, and all levels are included. They are deduplicated before generating results, so they are not visible in the report.
+
+Function signatures and block headers are excluded from a part being compared. They are called `context` here and only included in the Markdown report for readability.
+
+All comments are stripped.
+
+Too small code units are skipped. This is controlled with `*_node_count_threshold` options. By default, `block` has a much higher threshold than `function`. Check the `body_node_count` in tests to get an idea of how AST nodes map to actual code.
 
 ## Portability
 
@@ -268,6 +296,18 @@ Hashes in a report generated by `analyze` are intended to be stable across platf
 The order of code units in clusters can differ across platforms, but results should be the same, and the report is not intended to be committed. Embedding models don't return exactly the same floats every time, and this may cause edge cases when results differ a bit.
 
 The tool's database `slopo.db` is local to each developer and not intended to be portable.
+
+## Ranking thresholds
+
+`analyze` and `review` have separate thresholds. By default,
+- `analyze` has a bit higher to avoid reporting too many clusters.
+- `review` has a bit lower because its report is smaller and more focused.
+
+Similar code units are filtered in two passes, each with its own configurable threshold. The pipeline is as follows:
+
+1. `*_similarity_threshold` filters out code unit pairs whose embeddings are not similar enough. The calculated value is cosine similarity ranging from `-1` to `1` where `1` means the same.
+2. Similar pairs are grouped in clusters.
+3. Units in clusters are reranked after applying a boost. Boost is calculated based on the number of directory hops required to reach the other file in the pair (max. 15%). If they are in the same file, the boost is calculated based on distance in number of lines (max. 10%). `*_rerank_threshold` filters out clusters whose highest-scoring pair is not high enough.
 
 ## Is it the right tool?
 
@@ -281,23 +321,6 @@ Slopo aims to solve one narrow problem. It focuses on detecting duplicated code 
 It naturally detects also exact copies and slightly changed clones, which can be detected by other tools. If this is only what you need, those tools are a better fit. They are deterministic, faster, more mature, and don't require the whole ceremony involving embedding models.
 
 Not every project would benefit from Slopo equally. Larger or poorly maintained ones may benefit more, but it doesn't mean that others won't.
-
-## Details
-
-### Ranking thresholds
-
-Similar code units are filtered in two passes, each with its own configurable threshold. The pipeline is as follows:
-
-1. `similarity_threshold` filters out code unit pairs whose embeddings are not similar enough. The calculated value is cosine similarity ranging from `-1` to `1` where `1` means the same.
-2. Similar pairs are grouped in clusters.
-3. Units in clusters are reranked after applying a boost. Boost is calculated based on the number of directory hops required to reach the other file in the pair (max. 15%). If they are in the same file, the boost is calculated based on distance in number of lines (max. 10%). `rerank_threshold` filters out clusters whose highest-scoring pair is not high enough.
-
-### Exact-copy duplicates
-
-The main goal of this tool is to detect non-exact code duplication, but exact copies (identical code at multiple paths) are reported too, just handled a little differently from merely similar code:
-
-- The report shows the code once, listing every path where it appears, instead of repeating identical snippets.
-- The `analyze` command reports the "similarity ratio" (the share of code units flagged as similar) in two variants: including and excluding exact copies.
 
 ## Contribution
 

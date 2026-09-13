@@ -5,6 +5,7 @@ from slopo.result.report.naming import cluster_filename
 from slopo.result.report.markdown.shared import (
     format_table,
     group_by_body_hash,
+    group_by_context,
     lang_tag,
     similarity_range,
 )
@@ -41,15 +42,24 @@ def build_cluster_review(
     units: dict[int, UnitRecord],
     changed_ids: set[int],
 ) -> str:
-    lines: list[str] = [
-        f"## ({number}) score {similarity_range(cluster)}\n",
+    parts: list[str] = [
+        f"## ({number}) score {similarity_range(cluster)}",
     ]
-    for group in group_by_body_hash(cluster.unit_ids, units):
-        lines.append("---\n")
+    for group_number, group in enumerate(
+        group_by_body_hash(cluster.unit_ids, units), 1
+    ):
+        parts.append(f"### ______ {group_number} ______")
         lang = lang_tag(group[0].file_path)
-        for record in sorted(group, key=lambda r: r.file_path):
-            marker = "**CHANGED** " if record.unit_id in changed_ids else ""
-            entry = f"{marker}`{record.file_path}` lines {record.start_line}-{record.end_line}"
-            lines.append(f"- {entry}")
-        lines.append(f"\n```{lang}\n{group[0].body}\n```\n")
-    return "\n".join(lines)
+        records = sorted(group, key=lambda record: record.file_path)
+        for context_group in group_by_context(records):
+            for record in context_group:
+                marker = "**CHANGED** " if record.unit_id in changed_ids else ""
+                parts.append(
+                    f"- {marker}`{record.file_path}` lines "
+                    f"{record.start_line}-{record.end_line}"
+                )
+            context = context_group[0].context
+            if context is not None:
+                parts.append(f"```{lang}\n{context}\n```")
+        parts.append(f"```{lang}\n{group[0].body}\n```")
+    return "\n\n".join(parts) + "\n"

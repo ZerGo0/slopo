@@ -8,7 +8,7 @@ from slopo.result.report.markdown.review import (
 
 _UNITS = {
     1: UnitRecord(1, "src/A.java", "foo", 10, 20, "int foo() {}", "hashA"),
-    2: UnitRecord(2, "src/B.java", "bar", 5, 15, "int bar() {}", "hashB"),
+    2: UnitRecord(2, "src/B.java", None, 5, 15, "int bar() {}", "hashB"),
 }
 _CLUSTERS = [Cluster([1, 2], 0.95, 0.97)]
 _GENERATED_AT = datetime(2026, 6, 19, 14, 30, 0)
@@ -59,20 +59,55 @@ def test_cluster_marks_changed_units():
         == """\
 ## (1) score 0.95-0.97
 
----
+### ______ 1 ______
 
 - **CHANGED** `src/A.java` lines 10-20
+
+```java
+foo
+```
 
 ```java
 int foo() {}
 ```
 
----
+### ______ 2 ______
 
 - `src/B.java` lines 5-15
 
 ```java
 int bar() {}
+```
+"""
+    )
+
+
+def test_cluster_renders_identical_context_once_before_the_body():
+    units = {
+        1: UnitRecord(1, "src/A.java", "foo", 10, 20, "int foo() {}", "hashA"),
+        2: UnitRecord(2, "src/B.java", "foo", 30, 40, "int foo() {}", "hashA"),
+    }
+    cluster = Cluster([1, 2], 1.0, 1.0)
+
+    markdown = build_cluster_review(1, cluster, units, changed_ids={2})
+
+    assert (
+        markdown
+        == """\
+## (1) score 1.00
+
+### ______ 1 ______
+
+- `src/A.java` lines 10-20
+
+- **CHANGED** `src/B.java` lines 30-40
+
+```java
+foo
+```
+
+```java
+int foo() {}
 ```
 """
     )

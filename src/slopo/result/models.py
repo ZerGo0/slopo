@@ -21,7 +21,7 @@ class SimilarPair(NamedTuple):
 class UnitRecord(NamedTuple):
     unit_id: int
     file_path: str
-    name: str
+    context: str | None
     start_line: int
     end_line: int
     body: str

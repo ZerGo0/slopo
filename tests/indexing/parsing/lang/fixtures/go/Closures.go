@@ -5,11 +5,15 @@ type Worker struct {
 }
 
 func Transform(nums []int) []int {
-	doubler := func(x int) int { return x * 2 }
+	doubler := func(x int) int {
+		scaled := x * 2
+		return scaled
+	}
 
 	w := Worker{}
 	w.onComplete = func() {
 		println("done")
+		println("really done")
 	}
 
 	register(func(v int) int {
