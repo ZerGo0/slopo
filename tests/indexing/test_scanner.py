@@ -1,4 +1,5 @@
 import logging
+import os
 from pathlib import Path
 
 from slopo.indexing.scanner import (
@@ -71,6 +72,28 @@ def test_skips_files_under_excluded_directory(tmp_path: Path):
     scanned = list(scan_directory(tmp_path, exclude=["build/"]))
 
     assert scanned == ["Increment.kt"]
+
+
+def test_does_not_traverse_excluded_directory(tmp_path: Path, monkeypatch):
+    (tmp_path / "build" / "nested").mkdir(parents=True)
+    (tmp_path / "build" / "nested" / "Generated.kt").write_text(_KOTLIN)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "Increment.kt").write_text(_KOTLIN)
+
+    visited: list[str] = []
+    real_walk = os.walk
+
+    def tracking_walk(root):
+        for directory, directories, files in real_walk(root):
+            visited.append(Path(directory).relative_to(tmp_path).as_posix())
+            yield directory, directories, files
+
+    monkeypatch.setattr("slopo.indexing.scanner.os.walk", tracking_walk)
+
+    scanned = list(scan_directory(tmp_path, exclude=["build/"]))
+
+    assert scanned == ["src/Increment.kt"]
+    assert "build" not in visited
 
 
 def test_skips_files_matching_glob_pattern(tmp_path: Path):

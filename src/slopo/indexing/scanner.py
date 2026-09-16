@@ -1,4 +1,5 @@
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator
@@ -22,8 +23,23 @@ class NodeCountThresholds:
 def scan_directory(root: Path, exclude: list[str]) -> Iterator[str]:
     extensions = supported_extensions()
     spec = PathSpec.from_lines("gitignore", exclude)
-    for path in root.rglob("*"):
-        if path.is_file() and path.suffix.lower() in extensions:
+    has_negated_patterns = any(pattern.include is False for pattern in spec.patterns)
+
+    for current_root, directories, files in os.walk(root):
+        current_path = Path(current_root)
+        relative_root = current_path.relative_to(root)
+
+        if not has_negated_patterns:
+            directories[:] = [
+                directory
+                for directory in directories
+                if not spec.match_file(f"{(relative_root / directory).as_posix()}/")
+            ]
+
+        for file in files:
+            path = current_path / file
+            if not path.is_file() or path.suffix.lower() not in extensions:
+                continue
             relative = path.relative_to(root)
             if not spec.match_file(relative):
                 # Normalize to forward slashes so relative paths have consistent format
