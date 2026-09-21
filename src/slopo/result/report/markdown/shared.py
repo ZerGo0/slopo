@@ -40,22 +40,23 @@ def similarity_range(cluster: Cluster) -> str:
     return low if low == high else f"{low}-{high}"
 
 
-def lang_tag(file_path: str) -> str:
-    return LANG_MAP.get(Path(file_path).suffix, "")
+def lang_tag(file_path: str, language: str | None = None) -> str:
+    return language or LANG_MAP.get(Path(file_path).suffix, "")
 
 
 def group_by_body_hash(
     unit_ids: list[int], units: dict[int, UnitRecord]
 ) -> list[list[UnitRecord]]:
-    groups: dict[str, list[UnitRecord]] = {}
-    order: list[str] = []
+    groups: dict[tuple[str, str], list[UnitRecord]] = {}
+    order: list[tuple[str, str]] = []
     for uid in unit_ids:
         unit = units[uid]
-        if unit.body_hash not in groups:
-            groups[unit.body_hash] = []
-            order.append(unit.body_hash)
-        groups[unit.body_hash].append(unit)
-    return [groups[h] for h in order]
+        key = (unit.body_hash, lang_tag(unit.file_path, unit.language))
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(unit)
+    return [groups[key] for key in order]
 
 
 def group_by_context(units: list[UnitRecord]) -> list[list[UnitRecord]]:

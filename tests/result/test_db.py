@@ -44,6 +44,13 @@ def test_loads_units_spanning_multiple_chunks(
     assert set(units.keys()) == {1, 2, 3, 4}
 
 
+def test_loads_script_language(conn: sqlite3.Connection):
+    conn.executescript(_SETUP)
+    conn.execute("UPDATE code_units SET language = 'typescript' WHERE id = 1")
+
+    assert load_units(conn, {1})[1].language == "typescript"
+
+
 def test_returns_only_hashes_shared_by_more_than_one_unit(conn: sqlite3.Connection):
     conn.executescript(_SETUP)
 

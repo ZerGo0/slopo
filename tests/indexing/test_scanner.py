@@ -23,6 +23,14 @@ fun increment(a: Int): Int {
 }
 """
 
+_SVELTE = """\
+<script>
+    function increment(a) {
+        return a + 1;
+    }
+</script>
+"""
+
 _JAVA_WITH_BLOCK = """\
 class Sample {
     void run(int[] xs) {
@@ -42,10 +50,11 @@ class Sample {
 def test_scans_all_supported_languages(tmp_path: Path):
     (tmp_path / "Calculator.java").write_text(_JAVA)
     (tmp_path / "Increment.kt").write_text(_KOTLIN)
+    (tmp_path / "Counter.svelte").write_text(_SVELTE)
 
     scanned = set(scan_directory(tmp_path, exclude=[]))
 
-    assert scanned == {"Calculator.java", "Increment.kt"}
+    assert scanned == {"Calculator.java", "Counter.svelte", "Increment.kt"}
 
 
 def test_recurses_into_subdirectories_with_paths_relative_to_root(tmp_path: Path):
@@ -121,12 +130,15 @@ def test_negation_pattern_reincludes_excluded_file(tmp_path: Path):
 def test_parses_units_from_relevant_languages(tmp_path: Path):
     (tmp_path / "Calculator.java").write_text(_JAVA)
     (tmp_path / "Increment.kt").write_text(_KOTLIN)
+    (tmp_path / "Counter.svelte").write_text(_SVELTE)
 
     java_unit = parse_file(tmp_path / "Calculator.java")[0]
     kotlin_unit = parse_file(tmp_path / "Increment.kt")[0]
+    svelte_unit = parse_file(tmp_path / "Counter.svelte")[0]
 
     assert java_unit.body == "{\n    return a + 1;\n}"
     assert kotlin_unit.body == "{\n    return b + 2\n}"
+    assert svelte_unit.body == "{\n    return a + 1;\n}"
 
 
 def test_normalizes_crlf_line_endings_to_lf(tmp_path: Path):

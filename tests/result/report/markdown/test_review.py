@@ -111,3 +111,49 @@ int foo() {}
 ```
 """
     )
+
+
+def test_svelte_scripts_use_javascript_and_typescript_languages():
+    units = {
+        1: UnitRecord(
+            1,
+            "src/Counter.svelte",
+            "function amount(value: number)",
+            2,
+            4,
+            "return value + 1",
+            "script",
+            "typescript",
+        ),
+        2: UnitRecord(
+            2,
+            "src/Counter.ts",
+            "function amount(value: number)",
+            6,
+            8,
+            "return value + 1",
+            "script",
+        ),
+        3: UnitRecord(
+            3,
+            "src/Other.svelte",
+            "function amount(value)",
+            2,
+            4,
+            "return value + 1",
+            "script",
+            "javascript",
+        ),
+    }
+
+    markdown = build_cluster_review(
+        1, Cluster([1, 2, 3], 0.95, 0.95), units, changed_ids={1}
+    )
+
+    assert "```typescript\nfunction amount(value: number)" in markdown
+    assert markdown.count("```typescript\nreturn value + 1") == 1
+    assert "`src/Counter.svelte` lines 2-4" in markdown
+    assert "`src/Counter.ts` lines 6-8" in markdown
+    assert "```javascript\nfunction amount(value)" in markdown
+    assert "```javascript\nreturn value + 1" in markdown
+    assert "```svelte" not in markdown

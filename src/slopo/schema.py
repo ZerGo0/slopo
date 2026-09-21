@@ -1,6 +1,6 @@
 import sqlite3
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 # Bump SCHEMA_VERSION whenever schema changes
@@ -33,7 +33,8 @@ def create_schema(conn: sqlite3.Connection) -> None:
             start_line       INTEGER NOT NULL,
             end_line         INTEGER NOT NULL,
             body_node_count  INTEGER NOT NULL,
-            body_hash        TEXT NOT NULL
+            body_hash        TEXT NOT NULL,
+            language         TEXT
         );
 
         CREATE TABLE embeddings (

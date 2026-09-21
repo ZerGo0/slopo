@@ -1,5 +1,9 @@
 from slopo.result.models import UnitRecord
-from slopo.result.report.markdown.shared import group_by_body_hash, group_by_context
+from slopo.result.report.markdown.shared import (
+    group_by_body_hash,
+    group_by_context,
+    lang_tag,
+)
 
 
 def _unit(
@@ -112,4 +116,23 @@ def test_treats_missing_context_as_a_grouping_value():
     assert group_by_context([first_missing, present, second_missing]) == [
         [first_missing, second_missing],
         [present],
+    ]
+
+
+def test_uses_embedded_language_for_svelte_script():
+    assert lang_tag("src/components/Counter.svelte", "typescript") == "typescript"
+    assert lang_tag("src/components/Counter.svelte", "javascript") == "javascript"
+
+
+def test_separates_exact_copies_with_different_code_languages():
+    typescript_unit = _unit(1, "same")._replace(
+        file_path="src/Counter.svelte", language="typescript"
+    )
+    javascript_unit = _unit(2, "same")._replace(
+        file_path="src/Counter.svelte", language="javascript"
+    )
+
+    assert group_by_body_hash([1, 2], {1: typescript_unit, 2: javascript_unit}) == [
+        [typescript_unit],
+        [javascript_unit],
     ]

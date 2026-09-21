@@ -7,3 +7,4 @@ slopo.db
 slopo-report/
 slopo.conf.yaml
 slopo.ignore.txt
+COMMIT-MESSAGE.md

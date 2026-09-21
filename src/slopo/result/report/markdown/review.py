@@ -49,7 +49,7 @@ def build_cluster_review(
         group_by_body_hash(cluster.unit_ids, units), 1
     ):
         parts.append(f"### ______ {group_number} ______")
-        lang = lang_tag(group[0].file_path)
+        lang = lang_tag(group[0].file_path, group[0].language)
         records = sorted(group, key=lambda record: record.file_path)
         for context_group in group_by_context(records):
             for record in context_group:

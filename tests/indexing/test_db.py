@@ -47,6 +47,16 @@ def test_inserts_unit_fields_into_matching_columns(conn: sqlite3.Connection):
     )
 
 
+def test_stores_script_language_on_indexed_unit(conn: sqlite3.Connection):
+    file_id = _insert_file(conn)
+    unit = CodeUnit("f", "return 1", 1, 2, 3, "hash", kind="function")
+    unit.language = "typescript"
+
+    insert_file_units(conn, file_id, [unit])
+
+    assert conn.execute("SELECT language FROM code_units").fetchone() == ("typescript",)
+
+
 def test_inserts_all_units_with_sequential_ids(conn: sqlite3.Connection):
     file_id = _insert_file(conn)
     units = [

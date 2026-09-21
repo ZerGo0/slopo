@@ -16,6 +16,7 @@ class CodeUnit:
     body_hash: str
     kind: UnitKind
     context: str | None = None
+    language: str | None = None
 
 
 CodeParser = Callable[[bytes], list[CodeUnit]]

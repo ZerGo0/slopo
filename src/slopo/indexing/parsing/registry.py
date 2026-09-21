@@ -8,6 +8,7 @@ from slopo.indexing.parsing.lang import (
     go,
     php,
     python,
+    svelte,
     typescript,
     kotlin,
     java,
@@ -24,6 +25,7 @@ _REGISTRY: dict[str, CodeParser] = {
     ".php": php.parse,
     ".py": python.parse,
     ".rs": rust.parse,
+    ".svelte": svelte.parse,
     ".ts": typescript.parse,
 }
 

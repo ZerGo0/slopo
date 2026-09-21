@@ -50,8 +50,8 @@ def insert_file_units(
 ) -> None:
     conn.executemany(
         "INSERT INTO code_units"
-        " (file_id, context, body, start_line, end_line, body_node_count, body_hash)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?)",
+        " (file_id, context, body, start_line, end_line, body_node_count, body_hash, language)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         [
             (
                 file_id,
@@ -61,6 +61,7 @@ def insert_file_units(
                 u.end_line,
                 u.body_node_count,
                 u.body_hash,
+                u.language,
             )
             for u in units
         ],

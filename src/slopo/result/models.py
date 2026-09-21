@@ -26,6 +26,7 @@ class UnitRecord(NamedTuple):
     end_line: int
     body: str
     body_hash: str
+    language: str | None = None
 
 
 class ReviewResult(NamedTuple):

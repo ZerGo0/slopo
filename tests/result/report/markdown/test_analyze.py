@@ -89,6 +89,27 @@ int bar() {}
     )
 
 
+def test_svelte_script_uses_its_embedded_language():
+    units = {
+        1: UnitRecord(
+            1,
+            "src/Counter.svelte",
+            "function amount(value: number)",
+            2,
+            4,
+            "return value + 1",
+            "script",
+            "typescript",
+        ),
+    }
+    cluster = HashedCluster(Cluster([1], 1.0, 1.0), "script-hash")
+
+    markdown = build_cluster_analyze(1, cluster, units)
+
+    assert "```typescript\nfunction amount(value: number)" in markdown
+    assert "```typescript\nreturn value + 1" in markdown
+
+
 def test_groups_exact_duplicates():
     units = {
         **_UNITS,

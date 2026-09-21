@@ -13,7 +13,7 @@ To learn what these AI models allow to detect, where they are weak, and which on
 
 ### Supported languages
 
-Python, TypeScript, JavaScript, Java, Kotlin, C#, Go, Rust, PHP, Elixir
+Python, TypeScript, JavaScript, Java, Kotlin, C#, Go, Rust, PHP, Elixir, Svelte (TS/JS only)
 
 ## Problems it solves
 
