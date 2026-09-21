@@ -8,7 +8,6 @@ UnitKind = Literal["function", "block"]
 
 @dataclass
 class CodeUnit:
-    name: str  # Deprecated
     body: str
     start_line: int
     end_line: int

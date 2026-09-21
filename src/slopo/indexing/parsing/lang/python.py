@@ -62,7 +62,6 @@ def _function_unit(node: Node, source: bytes) -> CodeUnit | None:
         source, outer, source[outer.start_byte : body_block.start_byte].decode()
     ).strip()
     return CodeUnit(
-        name="<unset>",
         body=body,
         start_line=outer.start_point[0] + 1,
         end_line=node.end_point[0] + 1,
@@ -81,7 +80,6 @@ def _lambda_unit(node: Node, source: bytes) -> CodeUnit | None:
     lambda_header = source[node.start_byte : body_node.start_byte].decode().strip()
     context = _lambda_context(node, lambda_header)
     return CodeUnit(
-        name="<unset>",
         body=body,
         start_line=node.start_point[0] + 1,
         end_line=node.end_point[0] + 1,
@@ -181,7 +179,6 @@ def _block_unit(
         source[body_nodes[0].start_byte : body_nodes[-1].end_byte].decode(),
     )
     return CodeUnit(
-        name="<unset>",
         body=body,
         start_line=start.start_point[0] + 1,
         end_line=body_nodes[-1].end_point[0] + 1,

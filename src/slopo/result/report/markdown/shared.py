@@ -13,6 +13,7 @@ LANG_MAP = {
     ".py": "python",
     ".rs": "rust",
     ".ts": "typescript",
+    ".tsx": "tsx",
 }
 
 
