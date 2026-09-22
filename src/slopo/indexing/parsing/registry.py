@@ -1,6 +1,8 @@
 from pathlib import Path
 
 from slopo.indexing.parsing.lang import (
+    c,
+    cpp,
     javascript,
     csharp,
     elixir,
@@ -17,7 +19,15 @@ from slopo.indexing.parsing.lang import (
 from slopo.indexing.parsing.base import CodeParser
 
 _REGISTRY: dict[str, CodeParser] = {
+    ".c": c.parse,
+    ".cc": cpp.parse,
+    ".cpp": cpp.parse,
     ".cs": csharp.parse,
+    ".cxx": cpp.parse,
+    ".h": cpp.parse,
+    ".hh": cpp.parse,
+    ".hpp": cpp.parse,
+    ".hxx": cpp.parse,
     ".ex": elixir.parse,
     ".go": go.parse,
     ".java": java.parse,
