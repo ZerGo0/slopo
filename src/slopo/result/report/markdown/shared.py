@@ -11,6 +11,7 @@ LANG_MAP = {
     ".kt": "kotlin",
     ".php": "php",
     ".py": "python",
+    ".rb": "ruby",
     ".rs": "rust",
     ".ts": "typescript",
     ".tsx": "tsx",
