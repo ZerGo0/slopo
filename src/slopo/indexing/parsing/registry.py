@@ -7,6 +7,7 @@ from slopo.indexing.parsing.lang import (
     csharp,
     elixir,
     rust,
+    swift,
     go,
     php,
     python,
@@ -37,6 +38,7 @@ _REGISTRY: dict[str, CodeParser] = {
     ".py": python.parse,
     ".rb": ruby.parse,
     ".rs": rust.parse,
+    ".swift": swift.parse,
     ".ts": typescript.parse,
     ".tsx": tsx.parse,
 }

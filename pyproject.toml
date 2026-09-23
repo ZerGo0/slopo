@@ -8,7 +8,7 @@ authors = [{ name = "Rafal Kochanowski" }]
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "litellm~=1.102.0",
+    "litellm~=1.102.1",
     "numpy~=2.5.3",
     "pathspec~=1.1.1",
     "python-dotenv~=1.2.3",
@@ -26,6 +26,7 @@ dependencies = [
     "tree-sitter-python~=0.25.0",
     "tree-sitter-ruby~=0.23.1",
     "tree-sitter-rust~=0.24.2",
+    "tree-sitter-swift~=0.7.3",
     "tree-sitter-typescript~=0.23.2",
     "typer~=0.27.2",
 ]

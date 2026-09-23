@@ -21,6 +21,7 @@ LANG_MAP = {
     ".py": "python",
     ".rb": "ruby",
     ".rs": "rust",
+    ".swift": "swift",
     ".ts": "typescript",
     ".tsx": "tsx",
 }
