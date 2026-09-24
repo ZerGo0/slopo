@@ -6,16 +6,23 @@ from typing import Any
 
 import yaml  # type: ignore[import-untyped]
 
+from slopo.indexing.parsing.registry import supported_extensions
+
 
 _CONFIG_TEMPLATE = """\
 # Source directory with code to index.
 # Absolute path, or relative to the current directory.
 source_dir:
 
-# Paths to exclude from indexing, as a YAML list of .gitignore-style patterns
+# Paths to exclude from indexing, as a list of .gitignore-style patterns.
 #source_dir_exclude:
-#  - "**/test/**"
+#  - "test/"
 #  - "*.test.ts"
+
+# When set, only listed extensions are included. Otherwise, all supported files.
+#include_file_extensions:
+#  - .ts
+#  - .py
 
 # Embedding model in LiteLLM format, e.g. "jina_ai/jina-code-embeddings-0.5b"
 # For all supported providers see https://docs.litellm.ai/docs/providers
@@ -44,6 +51,7 @@ class ConfigFileNotFoundError(Exception):
 class Config:
     source_dir: Path
     source_dir_exclude: list[str]
+    include_file_extensions: list[str]
     db_file: Path
     report_dir: Path
     ignore_file: Path
@@ -82,6 +90,7 @@ def load_config(path: Path) -> Config:
 _KNOWN_CONFIG_KEYS = {
     "source_dir",
     "source_dir_exclude",
+    "include_file_extensions",
     "db_file",
     "report_dir",
     "ignore_file",
@@ -113,6 +122,9 @@ def parse_config(raw: Any, source: str) -> Config:
     return Config(
         source_dir=_require_path(raw, "source_dir", source),
         source_dir_exclude=_optional_str_list(raw, "source_dir_exclude", source),
+        include_file_extensions=_optional_extension_list(
+            raw, "include_file_extensions", source
+        ),
         db_file=_optional_path(raw, "db_file", source, default=Path("slopo.db")),
         report_dir=_optional_path(
             raw, "report_dir", source, default=Path("slopo-report")
@@ -219,6 +231,18 @@ def _optional_str_list(raw: dict[str, Any], key: str, source: str) -> list[str]:
             )
         items.append(item)
     return items
+
+
+def _optional_extension_list(raw: dict[str, Any], key: str, source: str) -> list[str]:
+    extensions = _optional_str_list(raw, key, source)
+    supported = supported_extensions()
+    for extension in extensions:
+        if extension not in supported:
+            raise ConfigError(
+                f"{source}: '{key}' has unsupported extension {extension!r}."
+                f" Supported: {', '.join(sorted(supported))}"
+            )
+    return extensions
 
 
 _RESERVED_EMBEDDING_PARAMS = ("model", "input", "dimensions", "api_key")

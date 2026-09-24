@@ -12,6 +12,7 @@ from slopo.indexing.db import (
     update_file_mtime,
     IndexedFile,
 )
+from slopo.indexing.scan_filter import ScanFilter
 from slopo.indexing.scanner import (
     NodeCountThresholds,
     filter_units,
@@ -32,7 +33,7 @@ def sync_index(
     conn: sqlite3.Connection,
     directory: Path,
     thresholds: NodeCountThresholds,
-    exclude: list[str],
+    scan_filter: ScanFilter,
 ) -> SyncStats:
     indexed_files = 0
     skipped_files = 0
@@ -41,7 +42,7 @@ def sync_index(
     indexed: dict[str, IndexedFile] = list_indexed_files(conn)
     seen_paths: set[str] = set()
 
-    for path_str in scan_directory(directory, exclude):
+    for path_str in scan_directory(directory, scan_filter):
         seen_paths.add(path_str)
         full_path: Path = directory / path_str
         mtime = full_path.stat().st_mtime

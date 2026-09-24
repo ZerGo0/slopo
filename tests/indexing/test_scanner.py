@@ -1,11 +1,13 @@
 import logging
 from pathlib import Path
 
+from slopo.indexing.scan_filter import ScanFilter
 from slopo.indexing.scanner import (
     NodeCountThresholds,
     filter_units,
     parse_file,
     scan_directory,
+    walk_files,
 )
 
 _JAVA = """\
@@ -38,58 +40,69 @@ class Sample {
 # --- scan_directory ---
 
 
-def test_scans_all_supported_languages(tmp_path: Path):
-    (tmp_path / "Calculator.java").write_text(_JAVA)
-    (tmp_path / "Increment.kt").write_text(_KOTLIN)
-
-    scanned = set(scan_directory(tmp_path, exclude=[]))
-
-    assert scanned == {"Calculator.java", "Increment.kt"}
-
-
-def test_recurses_into_subdirectories_with_paths_relative_to_root(tmp_path: Path):
+def test_returns_kept_files_as_paths_relative_to_root(tmp_path: Path):
     (tmp_path / "sub" / "nested").mkdir(parents=True)
-    (tmp_path / "sub" / "nested" / "Increment.kt").write_text(_KOTLIN)
-
-    scanned = list(scan_directory(tmp_path, exclude=[]))
-
-    assert scanned == ["sub/nested/Increment.kt"]
-
-
-def test_ignores_unsupported_file_types(tmp_path: Path):
-    (tmp_path / "notes.txt").write_text("not code")
-    (tmp_path / "data.json").write_text("{}")
-
-    assert list(scan_directory(tmp_path, exclude=[])) == []
-
-
-def test_skips_files_under_excluded_directory(tmp_path: Path):
+    (tmp_path / "sub" / "nested" / "Deep.kt").write_text(_KOTLIN)
     (tmp_path / "build").mkdir()
     (tmp_path / "build" / "Generated.kt").write_text(_KOTLIN)
     (tmp_path / "Increment.kt").write_text(_KOTLIN)
+    (tmp_path / "notes.txt").write_text("not code")
 
-    scanned = list(scan_directory(tmp_path, exclude=["build/"]))
+    scan_filter = ScanFilter.create(exclude=["build/"], include_extensions=[])
 
-    assert scanned == ["Increment.kt"]
+    scanned = set(scan_directory(tmp_path, scan_filter))
 
-
-def test_skips_files_matching_glob_pattern(tmp_path: Path):
-    (tmp_path / "Increment.gen.kt").write_text(_KOTLIN)
-    (tmp_path / "Increment.kt").write_text(_KOTLIN)
-
-    scanned = list(scan_directory(tmp_path, exclude=["*.gen.kt"]))
-
-    assert scanned == ["Increment.kt"]
+    assert scanned == {"sub/nested/Deep.kt", "Increment.kt"}
 
 
-def test_negation_pattern_reincludes_excluded_file(tmp_path: Path):
+def test_skips_file_reincluded_under_excluded_directory(tmp_path: Path):
     (tmp_path / "build").mkdir()
-    (tmp_path / "build" / "Keep.kt").write_text(_KOTLIN)
-    (tmp_path / "build" / "Drop.kt").write_text(_KOTLIN)
+    (tmp_path / "build" / "Generated.kt").write_text(_KOTLIN)
 
-    scanned = list(scan_directory(tmp_path, exclude=["build/", "!build/Keep.kt"]))
+    scan_filter = ScanFilter.create(
+        exclude=["build/", "!build/Generated.kt"], include_extensions=[]
+    )
 
-    assert scanned == ["build/Keep.kt"]
+    scanned = set(scan_directory(tmp_path, scan_filter))
+
+    assert scanned == set()
+
+
+# --- walk_files ---
+
+
+def test_walks_all_files_in_nested_directories(tmp_path: Path):
+    (tmp_path / "a" / "b" / "c").mkdir(parents=True)
+    (tmp_path / "a" / "A.kt").write_text(_KOTLIN)
+    (tmp_path / "a" / "b" / "c" / "Deep.kt").write_text(_KOTLIN)
+    (tmp_path / "x").mkdir()
+    (tmp_path / "x" / "notes.txt").write_text("not code")
+    (tmp_path / "Root.kt").write_text(_KOTLIN)
+
+    scan_filter = ScanFilter.create(exclude=[], include_extensions=[])
+
+    walked = set(walk_files(tmp_path, scan_filter))
+
+    assert walked == {
+        Path("a/A.kt"),
+        Path("a/b/c/Deep.kt"),
+        Path("x/notes.txt"),
+        Path("Root.kt"),
+    }
+
+
+def test_skips_files_under_excluded_directory(tmp_path: Path):
+    (tmp_path / "build" / "nested").mkdir(parents=True)
+    (tmp_path / "build" / "Generated.kt").write_text(_KOTLIN)
+    (tmp_path / "build" / "nested" / "Generated.kt").write_text(_KOTLIN)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "Increment.kt").write_text(_KOTLIN)
+
+    scan_filter = ScanFilter.create(exclude=["build/"], include_extensions=[])
+
+    walked = list(walk_files(tmp_path, scan_filter))
+
+    assert walked == [Path("src/Increment.kt")]
 
 
 # --- parse_file ---
