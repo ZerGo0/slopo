@@ -4,10 +4,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator
 
-from pathspec import PathSpec
-
 from slopo.indexing.parsing.base import CodeUnit
-from slopo.indexing.parsing.registry import get_parser, supported_extensions
+from slopo.indexing.parsing.registry import get_parser
+from slopo.indexing.scan_filter import ScanFilter
 
 logger = logging.getLogger(__name__)
 
@@ -20,31 +19,27 @@ class NodeCountThresholds:
     block: int
 
 
-def scan_directory(root: Path, exclude: list[str]) -> Iterator[str]:
-    extensions = supported_extensions()
-    spec = PathSpec.from_lines("gitignore", exclude)
-    has_negated_patterns = any(pattern.include is False for pattern in spec.patterns)
+def scan_directory(root: Path, scan_filter: ScanFilter) -> Iterator[str]:
+    for relative_file in walk_files(root, scan_filter):
+        if (
+            scan_filter.should_keep_file(relative_file)
+            and (root / relative_file).is_file()
+        ):
+            # Normalize to forward slashes so relative paths have consistent format
+            # in generated reports and cluster hashes used in the ignore file.
+            yield relative_file.as_posix()
 
-    for current_root, directories, files in os.walk(root):
-        current_path = Path(current_root)
-        relative_root = current_path.relative_to(root)
 
-        if not has_negated_patterns:
-            directories[:] = [
-                directory
-                for directory in directories
-                if not spec.match_file(f"{(relative_root / directory).as_posix()}/")
-            ]
-
+def walk_files(root: Path, scan_filter: ScanFilter) -> Iterator[Path]:
+    for current, directories, files in os.walk(root):
+        relative_dir = Path(current).relative_to(root)
+        directories[:] = [
+            directory
+            for directory in directories
+            if scan_filter.should_enter_dir(relative_dir / directory)
+        ]
         for file in files:
-            path = current_path / file
-            if not path.is_file() or path.suffix.lower() not in extensions:
-                continue
-            relative = path.relative_to(root)
-            if not spec.match_file(relative):
-                # Normalize to forward slashes so relative paths have consistent format
-                # in generated reports and cluster hashes used in the ignore file.
-                yield relative.as_posix()
+            yield relative_dir / file
 
 
 def parse_file(path: Path) -> list[CodeUnit]:

@@ -55,7 +55,6 @@ def _function_unit(node: Node, source: bytes, context: str | None) -> CodeUnit |
         return None
     body = source[body_block.start_byte : body_block.end_byte].decode()
     return CodeUnit(
-        name="<unset>",
         body=body,
         start_line=node.start_point[0] + 1,
         end_line=node.end_point[0] + 1,
@@ -145,7 +144,6 @@ def _block_unit(
 ) -> CodeUnit:
     body = source[body_nodes[0].start_byte : body_nodes[-1].end_byte].decode()
     return CodeUnit(
-        name="<unset>",
         body=body,
         start_line=start.start_point[0] + 1,
         end_line=body_nodes[-1].end_point[0] + 1,

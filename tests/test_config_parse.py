@@ -196,6 +196,28 @@ def test_source_dir_exclude_empty_string_item_rejected():
         parse_config(_minimal_raw(source_dir_exclude=[""]), source="<test>")
 
 
+# --- include_file_extensions ---
+
+
+def test_include_file_extensions_defaults_to_empty_list_when_absent():
+    cfg = parse_config(_minimal_raw(), source="<test>")
+    assert cfg.include_file_extensions == []
+
+
+def test_include_file_extensions_parsed_as_list_of_extensions():
+    cfg = parse_config(
+        _minimal_raw(include_file_extensions=[".py", ".kt"]), source="<test>"
+    )
+    assert cfg.include_file_extensions == [".py", ".kt"]
+
+
+def test_include_file_extensions_unsupported_extension_rejected():
+    with pytest.raises(
+        ConfigError, match="'include_file_extensions' has unsupported extension '.txt'"
+    ):
+        parse_config(_minimal_raw(include_file_extensions=[".txt"]), source="<test>")
+
+
 # --- path overrides ---
 
 

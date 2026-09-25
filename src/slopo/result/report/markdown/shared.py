@@ -3,7 +3,15 @@ from pathlib import Path
 from slopo.result.models import Cluster, UnitRecord
 
 LANG_MAP = {
+    ".c": "c",
+    ".cc": "cpp",
+    ".cpp": "cpp",
     ".cs": "csharp",
+    ".cxx": "cpp",
+    ".h": "cpp",
+    ".hh": "cpp",
+    ".hpp": "cpp",
+    ".hxx": "cpp",
     ".ex": "elixir",
     ".go": "go",
     ".java": "java",
@@ -11,8 +19,11 @@ LANG_MAP = {
     ".kt": "kotlin",
     ".php": "php",
     ".py": "python",
+    ".rb": "ruby",
     ".rs": "rust",
+    ".swift": "swift",
     ".ts": "typescript",
+    ".tsx": "tsx",
 }
 
 

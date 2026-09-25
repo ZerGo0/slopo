@@ -13,7 +13,7 @@ To learn what these AI models allow to detect, where they are weak, and which on
 
 ### Supported languages
 
-Python, TypeScript, JavaScript, Java, Kotlin, C#, Go, Rust, PHP, Elixir, Svelte (TS/JS only)
+Python, TypeScript, TSX, JavaScript, Java, Kotlin, C, C++, C#, Go, Rust, PHP, Elixir, Ruby, Swift, Svelte (TS/JS only)
 
 ## Problems it solves
 
@@ -249,7 +249,18 @@ Most configuration is done with a configuration file with two exceptions:
 ### All configurable parameters
 
 - `source_dir`: Source directory with code to index, absolute or relative path.
-- `source_dir_exclude`: .gitignore-style patterns to exclude from indexing.
+- `source_dir_exclude`: .gitignore-style patterns to exclude from indexing, matched the same way Git does. Example:
+```yaml
+source_dir_exclude:
+  - "test/"
+  - "*.test.ts"
+```
+- `include_file_extensions`: Optional list of file types to include. When not set, all supported files are included. Exclusion with `source_dir_exclude` has precedence. Example:
+```yaml
+include_file_extensions:
+  - .ts
+  - .py
+```
 - `db_file`: SQLite database file with tool data.
 - `report_dir`: Output directory for analysis report.
 - `ignore_file`: Text file with ignored clusters.
@@ -279,7 +290,7 @@ There are two groups of code units:
 
 You can check tests for your target language at [tests/indexing/parsing/lang](tests/indexing/parsing/lang) to see what constructs are extracted. The `fixtures` directory contains example code you can compare with tests.
 
-Code units naturally overlap, including deeper structures, and all levels are included. They are deduplicated before generating results, so they are not visible in the report.
+Code units naturally overlap, including deeper structures, and all levels are included. They are deduplicated by keeping only the best-matched variants.
 
 Function signatures and block headers are excluded from a part being compared. They are called `context` here and only included in the Markdown report for readability.
 

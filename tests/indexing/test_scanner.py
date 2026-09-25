@@ -2,11 +2,13 @@ import logging
 import os
 from pathlib import Path
 
+from slopo.indexing.scan_filter import ScanFilter
 from slopo.indexing.scanner import (
     NodeCountThresholds,
     filter_units,
     parse_file,
     scan_directory,
+    walk_files,
 )
 
 _JAVA = """\
@@ -47,43 +49,80 @@ class Sample {
 # --- scan_directory ---
 
 
-def test_scans_all_supported_languages(tmp_path: Path):
-    (tmp_path / "Calculator.java").write_text(_JAVA)
-    (tmp_path / "Increment.kt").write_text(_KOTLIN)
+def test_scans_svelte_files(tmp_path: Path):
     (tmp_path / "Counter.svelte").write_text(_SVELTE)
 
-    scanned = set(scan_directory(tmp_path, exclude=[]))
+    scan_filter = ScanFilter.create(exclude=[], include_extensions=[])
 
-    assert scanned == {"Calculator.java", "Counter.svelte", "Increment.kt"}
+    assert list(scan_directory(tmp_path, scan_filter)) == ["Counter.svelte"]
 
 
-def test_recurses_into_subdirectories_with_paths_relative_to_root(tmp_path: Path):
+def test_returns_kept_files_as_paths_relative_to_root(tmp_path: Path):
     (tmp_path / "sub" / "nested").mkdir(parents=True)
-    (tmp_path / "sub" / "nested" / "Increment.kt").write_text(_KOTLIN)
-
-    scanned = list(scan_directory(tmp_path, exclude=[]))
-
-    assert scanned == ["sub/nested/Increment.kt"]
-
-
-def test_ignores_unsupported_file_types(tmp_path: Path):
-    (tmp_path / "notes.txt").write_text("not code")
-    (tmp_path / "data.json").write_text("{}")
-
-    assert list(scan_directory(tmp_path, exclude=[])) == []
-
-
-def test_skips_files_under_excluded_directory(tmp_path: Path):
+    (tmp_path / "sub" / "nested" / "Deep.kt").write_text(_KOTLIN)
     (tmp_path / "build").mkdir()
     (tmp_path / "build" / "Generated.kt").write_text(_KOTLIN)
     (tmp_path / "Increment.kt").write_text(_KOTLIN)
+    (tmp_path / "notes.txt").write_text("not code")
 
-    scanned = list(scan_directory(tmp_path, exclude=["build/"]))
+    scan_filter = ScanFilter.create(exclude=["build/"], include_extensions=[])
 
-    assert scanned == ["Increment.kt"]
+    scanned = set(scan_directory(tmp_path, scan_filter))
+
+    assert scanned == {"sub/nested/Deep.kt", "Increment.kt"}
 
 
-def test_does_not_traverse_excluded_directory(tmp_path: Path, monkeypatch):
+def test_skips_file_reincluded_under_excluded_directory(tmp_path: Path):
+    (tmp_path / "build").mkdir()
+    (tmp_path / "build" / "Generated.kt").write_text(_KOTLIN)
+
+    scan_filter = ScanFilter.create(
+        exclude=["build/", "!build/Generated.kt"], include_extensions=[]
+    )
+
+    scanned = set(scan_directory(tmp_path, scan_filter))
+
+    assert scanned == set()
+
+
+# --- walk_files ---
+
+
+def test_walks_all_files_in_nested_directories(tmp_path: Path):
+    (tmp_path / "a" / "b" / "c").mkdir(parents=True)
+    (tmp_path / "a" / "A.kt").write_text(_KOTLIN)
+    (tmp_path / "a" / "b" / "c" / "Deep.kt").write_text(_KOTLIN)
+    (tmp_path / "x").mkdir()
+    (tmp_path / "x" / "notes.txt").write_text("not code")
+    (tmp_path / "Root.kt").write_text(_KOTLIN)
+
+    scan_filter = ScanFilter.create(exclude=[], include_extensions=[])
+
+    walked = set(walk_files(tmp_path, scan_filter))
+
+    assert walked == {
+        Path("a/A.kt"),
+        Path("a/b/c/Deep.kt"),
+        Path("x/notes.txt"),
+        Path("Root.kt"),
+    }
+
+
+def test_skips_files_under_excluded_directory(tmp_path: Path):
+    (tmp_path / "build" / "nested").mkdir(parents=True)
+    (tmp_path / "build" / "Generated.kt").write_text(_KOTLIN)
+    (tmp_path / "build" / "nested" / "Generated.kt").write_text(_KOTLIN)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "Increment.kt").write_text(_KOTLIN)
+
+    scan_filter = ScanFilter.create(exclude=["build/"], include_extensions=[])
+
+    walked = list(walk_files(tmp_path, scan_filter))
+
+    assert walked == [Path("src/Increment.kt")]
+
+
+def test_does_not_enter_excluded_directory(tmp_path: Path, monkeypatch):
     (tmp_path / "build" / "nested").mkdir(parents=True)
     (tmp_path / "build" / "nested" / "Generated.kt").write_text(_KOTLIN)
     (tmp_path / "src").mkdir()
@@ -99,29 +138,9 @@ def test_does_not_traverse_excluded_directory(tmp_path: Path, monkeypatch):
 
     monkeypatch.setattr("slopo.indexing.scanner.os.walk", tracking_walk)
 
-    scanned = list(scan_directory(tmp_path, exclude=["build/"]))
-
-    assert scanned == ["src/Increment.kt"]
-    assert "build" not in visited
-
-
-def test_skips_files_matching_glob_pattern(tmp_path: Path):
-    (tmp_path / "Increment.gen.kt").write_text(_KOTLIN)
-    (tmp_path / "Increment.kt").write_text(_KOTLIN)
-
-    scanned = list(scan_directory(tmp_path, exclude=["*.gen.kt"]))
-
-    assert scanned == ["Increment.kt"]
-
-
-def test_negation_pattern_reincludes_excluded_file(tmp_path: Path):
-    (tmp_path / "build").mkdir()
-    (tmp_path / "build" / "Keep.kt").write_text(_KOTLIN)
-    (tmp_path / "build" / "Drop.kt").write_text(_KOTLIN)
-
-    scanned = list(scan_directory(tmp_path, exclude=["build/", "!build/Keep.kt"]))
-
-    assert scanned == ["build/Keep.kt"]
+    scan_filter = ScanFilter.create(exclude=["build/"], include_extensions=[])
+    assert list(scan_directory(tmp_path, scan_filter)) == ["src/Increment.kt"]
+    assert visited == [".", "src"]
 
 
 # --- parse_file ---
@@ -130,15 +149,12 @@ def test_negation_pattern_reincludes_excluded_file(tmp_path: Path):
 def test_parses_units_from_relevant_languages(tmp_path: Path):
     (tmp_path / "Calculator.java").write_text(_JAVA)
     (tmp_path / "Increment.kt").write_text(_KOTLIN)
-    (tmp_path / "Counter.svelte").write_text(_SVELTE)
 
     java_unit = parse_file(tmp_path / "Calculator.java")[0]
     kotlin_unit = parse_file(tmp_path / "Increment.kt")[0]
-    svelte_unit = parse_file(tmp_path / "Counter.svelte")[0]
 
     assert java_unit.body == "{\n    return a + 1;\n}"
     assert kotlin_unit.body == "{\n    return b + 2\n}"
-    assert svelte_unit.body == "{\n    return a + 1;\n}"
 
 
 def test_normalizes_crlf_line_endings_to_lf(tmp_path: Path):

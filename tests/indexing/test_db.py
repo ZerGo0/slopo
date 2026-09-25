@@ -20,7 +20,6 @@ def _insert_file(conn: sqlite3.Connection) -> int:
 def test_inserts_unit_fields_into_matching_columns(conn: sqlite3.Connection):
     file_id = _insert_file(conn)
     unit = CodeUnit(
-        name="increment",
         body="int increment(int a) { return a + 1; }",
         start_line=2,
         end_line=4,
@@ -49,7 +48,7 @@ def test_inserts_unit_fields_into_matching_columns(conn: sqlite3.Connection):
 
 def test_stores_script_language_on_indexed_unit(conn: sqlite3.Connection):
     file_id = _insert_file(conn)
-    unit = CodeUnit("f", "return 1", 1, 2, 3, "hash", kind="function")
+    unit = CodeUnit("return 1", 1, 2, 3, "hash", kind="function")
     unit.language = "typescript"
 
     insert_file_units(conn, file_id, [unit])
@@ -60,12 +59,8 @@ def test_stores_script_language_on_indexed_unit(conn: sqlite3.Connection):
 def test_inserts_all_units_with_sequential_ids(conn: sqlite3.Connection):
     file_id = _insert_file(conn)
     units = [
-        CodeUnit(
-            "increment", "body1", 1, 2, 3, "hash1", kind="function", context="ctx1"
-        ),
-        CodeUnit(
-            "decrement", "body2", 4, 5, 6, "hash2", kind="function", context="ctx2"
-        ),
+        CodeUnit("body1", 1, 2, 3, "hash1", kind="function", context="ctx1"),
+        CodeUnit("body2", 4, 5, 6, "hash2", kind="function", context="ctx2"),
     ]
 
     insert_file_units(conn, file_id, units)
@@ -77,7 +72,7 @@ def test_inserts_all_units_with_sequential_ids(conn: sqlite3.Connection):
 def test_deletes_file_and_its_units(conn: sqlite3.Connection):
     file_id = _insert_file(conn)
     insert_file_units(
-        conn, file_id, [CodeUnit("dup", "body", 1, 2, 3, "hash", kind="function")]
+        conn, file_id, [CodeUnit("body", 1, 2, 3, "hash", kind="function")]
     )
 
     delete_files(conn, [file_id])
@@ -95,7 +90,7 @@ def test_deletes_files_spanning_multiple_chunks(
         conn.execute("INSERT INTO files (path, mtime) VALUES (?, 0)", (f"F{i}.java",))
         file_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
         insert_file_units(
-            conn, file_id, [CodeUnit("a", "body", 1, 2, 3, f"h{i}", kind="function")]
+            conn, file_id, [CodeUnit("body", 1, 2, 3, f"h{i}", kind="function")]
         )
         file_ids.append(file_id)
 
@@ -108,7 +103,7 @@ def test_deletes_files_spanning_multiple_chunks(
 def test_deletes_units_of_modified_file(conn: sqlite3.Connection):
     file_id = _insert_file(conn)
     insert_file_units(
-        conn, file_id, [CodeUnit("dup", "body", 1, 2, 3, "hash", kind="function")]
+        conn, file_id, [CodeUnit("body", 1, 2, 3, "hash", kind="function")]
     )
 
     delete_file_units(conn, file_id)
@@ -129,7 +124,7 @@ def test_prune_removes_embeddings_with_no_remaining_units(conn: sqlite3.Connecti
 def test_prune_keeps_embedding_while_a_unit_shares_its_hash(conn: sqlite3.Connection):
     file_id = _insert_file(conn)
     insert_file_units(
-        conn, file_id, [CodeUnit("a", "body", 1, 2, 3, "shared", kind="function")]
+        conn, file_id, [CodeUnit("body", 1, 2, 3, "shared", kind="function")]
     )
     conn.execute(
         "INSERT INTO embeddings (body_hash, embedding) VALUES ('shared', X'0000803f')"

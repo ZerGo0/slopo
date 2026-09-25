@@ -11,6 +11,7 @@ from slopo.embedding.models import EmbeddedUnit, UnembeddedUnit
 _CONFIG = Config(
     source_dir=Path("src"),
     source_dir_exclude=[],
+    include_file_extensions=[],
     db_file=Path("slopo.db"),
     report_dir=Path("slopo-report"),
     ignore_file=Path("slopo.ignore.txt"),
